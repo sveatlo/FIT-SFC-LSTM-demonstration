@@ -7,14 +7,9 @@
 
 using namespace std;
 
-LSTM::LSTM(map<char, size_t> char_to_idx, map<size_t, char> idx_to_char,
-           size_t vocab_size, size_t n_h, size_t seq_len) {
-  LSTM(char_to_idx, idx_to_char, vocab_size, n_h, seq_len, 0.9, 0.999);
-}
-
 LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
-           size_t _vocab_size, size_t _n_h, size_t _seq_len, double _beta1,
-           double _beta2)
+           size_t _vocab_size, size_t _n_h, size_t _seq_len, double _beta1 = 0.9,
+           double _beta2 = 0.999)
     : char_to_idx(_char_to_idx), idx_to_char(_idx_to_char),
       vocab_size(_vocab_size), n_h(_n_h), seq_len(_seq_len), beta1(_beta1),
       beta2(_beta2) {
@@ -87,28 +82,53 @@ void LSTM::update_params(size_t batch_n) {
   for (auto &item : this->params) {
     string key = item.first;
 
-    this->adam_params["m" + key] =
-        (this->adam_params["m" + key] * this->beta1) /*  + */
-        /* (this->grads["d" + key] * (1 - this->beta1)) */;
-    // this->adam_params["v" + key] = (this->adam_params["m" + key] *
-    // this->beta2) +
-    //                                     (this->grads["d" + key] * (1 -
-    //                                     this->beta2));
+	auto mtmp1 = (this->grads["d" + key] * (1 - this->beta1));
+	auto mtmp2 = (this->grads["d" + key] * (1 - this->beta2));
+    this->adam_params["m" + key] = (this->adam_params["m" + key] * this->beta1) + mtmp1;
+	this->adam_params["v" + key] = (this->adam_params["m" + key] * this->beta2) + mtmp2;
   }
 }
 
-void LSTM::forward_step(vector<char> x, Matrix h_prev, Matrix c_prev) {}
+LSTM_step_data LSTM::forward_step(vector<size_t> _x, Matrix h_prev, Matrix c_prev) {
+	vector<double> __x;
+	for(size_t x_n : _x) {
+		__x.push_back(static_cast<double>(x_n));
+	}
+	Matrix x(__x);
+
+	Matrix z = x.vstack(h_prev);
+
+	Matrix f = this->sigmoid(this->params["Wf"].dot(z) + this->params["bf"]);
+	Matrix i = this->sigmoid(this->params["Wi"].dot(z) + this->params["bi"]);
+	Matrix c_hat = this->sigmoid(this->params["Wc"].dot(z) + this->params["bc"]);
+	Matrix o = this->sigmoid(this->params["Wo"].dot(z) + this->params["bo"]);
+
+	Matrix ctmp = i * c_hat;
+	Matrix c = f * c_prev + ctmp;
+	Matrix h = c.tanh() * o;
+	Matrix v = this->sigmoid(this->params["Wv"].dot(h) + this->params["bv"]);
+	Matrix y_hat = this->softmax(v);
+
+	LSTM_step_data step_data = {
+		.y_hat = y_hat,
+		.v = v,
+		.h = h,
+		.o = o,
+		.c = c,
+		.c_hat = c_hat,
+		.i = i,
+		.f = f,
+		.z = z,
+	};
+
+
+	return step_data;
+}
 
 void LSTM::backward_step() {}
 
-void LSTM::forward_backward(vector<char> x_batch, vector<char> y_batch,
+void LSTM::forward_backward(vector<size_t> x_batch, vector<size_t> y_batch,
                             Matrix h_prev, Matrix c_prev) {}
-
-void LSTM::set_seq() { this->seq_len = 1000; }
-void LSTM::print_debug() {
-  cout << "seq len: " << seq_len << endl;
-  cout << "n_h: " << seq_len << endl;
-}
 
 void LSTM::train(vector<char> X, size_t epochs, double lr) {
   vector<double> losses;
@@ -117,21 +137,21 @@ void LSTM::train(vector<char> X, size_t epochs, double lr) {
   vector<char> X_trimmed(X.begin(), X.begin() + num_batches * this->seq_len);
 
   for (size_t epoch = 0; epoch < epochs; epoch++) {
-	Matrix h_prev(this->n_h, 1, 0);
-	Matrix c_prev(this->n_h, 1, 0);
+    Matrix h_prev(this->n_h, 1, 0);
+    Matrix c_prev(this->n_h, 1, 0);
 
-	for (size_t i = 0; i < X_trimmed.size(); i += this->seq_len) {
-	  // prepare data
-	  vector<size_t> x_batch, y_batch;
-	  for (size_t j = i; j < i + this->seq_len; j++) {
-		x_batch.push_back(this->char_to_idx[j]);
-	  }
-	  for (size_t j = i + 1; j < i + this->seq_len + 1; j++) {
-		y_batch.push_back(this->char_to_idx[j]);
-	  }
+    for (size_t i = 0; i < X_trimmed.size(); i += this->seq_len) {
+      // prepare data
+      vector<size_t> x_batch, y_batch;
+      for (size_t j = i; j < i + this->seq_len; j++) {
+        x_batch.push_back(this->char_to_idx[j]);
+      }
+      for (size_t j = i + 1; j < i + this->seq_len + 1; j++) {
+        y_batch.push_back(this->char_to_idx[j]);
+      }
 
-	  this->sample(h_prev, c_prev, 100);
-	}
+      this->sample(h_prev, c_prev, 100);
+    }
   }
 }
 

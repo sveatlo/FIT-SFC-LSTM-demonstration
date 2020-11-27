@@ -9,6 +9,7 @@ using namespace std;
 class Matrix {
 public:
   Matrix();
+  Matrix(vector<double>&);
   Matrix(size_t rows, size_t cols, double initial_value);
   ~Matrix();                         // Destructor
   Matrix(const Matrix &);            // Copy constructor
@@ -31,19 +32,25 @@ public:
 
   // arithmetic helpers
   Matrix exp();
+  Matrix tanh();
+  Matrix dot(Matrix&);
+  Matrix divides(double numerator);
   Matrix clip(double, double);
   double max();
   double sum();
-  Matrix divides(double numerator);
 
   // helpers
   void fill(double);
+  Matrix hstack(Matrix&);
+  Matrix vstack(Matrix&);
   Matrix transpose();
   void randomize(double, double);
-  void print() const;
   tuple<size_t, size_t> shape();
   size_t rows_n();
   size_t cols_n();
+  vector<double> row(size_t n);
+  vector<double> column(size_t n);
+  void print() const;
 
 private:
   size_t rows;
