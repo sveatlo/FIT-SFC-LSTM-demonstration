@@ -8,18 +8,23 @@
 
 using namespace std;
 
+typedef struct {
+  Matrix y_hat;
+  Matrix v;
+  Matrix h;
+  Matrix o;
+  Matrix c;
+  Matrix c_hat;
+  Matrix i;
+  Matrix f;
+  Matrix z;
+} LSTM_step_data;
 
 typedef struct {
-		Matrix y_hat;
-		Matrix v;
-		Matrix h;
-		Matrix o;
-		Matrix c;
-		Matrix c_hat;
-		Matrix i;
-		Matrix f;
-		Matrix z;
-} LSTM_step_data ;
+  double loss;
+  Matrix h;
+  Matrix c;
+} LSTM_forward_backward_return;
 
 class LSTM {
 public:
@@ -27,7 +32,8 @@ public:
        size_t vocab_size, size_t n_h, size_t seq_len, double beta1,
        double beta2);
 
-  void train(vector<char> data, size_t epochs, double lr);
+  pair<vector<double>, map<string, Matrix>> train(vector<char> data,
+                                                  size_t epochs, double lr);
   string sample(Matrix h_prev, Matrix c_prev, size_t size);
 
 private:
@@ -52,9 +58,9 @@ private:
   void update_params(size_t batch_n);
   LSTM_step_data forward_step(vector<size_t> x, Matrix h_prev, Matrix c_prev);
   void backward_step();
-  void forward_backward(vector<size_t> x_batch, vector<size_t> y_batch, Matrix h_prev, Matrix c_prev);
+  LSTM_forward_backward_return forward_backward(vector<size_t> x_batch,
+                                                vector<size_t> y_batch,
+                                                Matrix h_prev, Matrix c_prev);
 };
-
-
 
 #endif
