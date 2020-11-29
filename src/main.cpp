@@ -1,6 +1,7 @@
 #include "log.h"
 #include "lstm.h"
 #include "matrix.h"
+#include <algorithm>
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
@@ -10,6 +11,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include "stacktrace.h"
 
 void print_help(string);
 vector<char> read_dataset(string &);
@@ -65,18 +67,22 @@ int main(int argc, char **argv) {
   }
 
   // try {
-  //   Matrix a(1, 2, 2);
-  //   Matrix b(1, 2, 3);
-  //   Matrix r = a.dot(b);
-  //   r.print();
+  //   vector<double> v(12);
+  //   int n=0;
+  //   std::generate(v.begin(), v.end(), [&]{ return ++n; });
+  //   Matrix a(v);
+  //   a.print();
+  //   a.reshape(9, 1);
+  //   a.print();
   // } catch (char const *e) {
   //   cerr << e << endl;
   // }
   // return 0;
 
   if (dataset_filepath == "") {
-    cerr << "Invalid dataset filepath";
-    return 1;
+	dataset_filepath = "./data/HP1-short.txt";
+    // cerr << "Invalid dataset filepath";
+    // return 1;
   }
 
   vector<char> data = read_dataset(dataset_filepath);
@@ -92,14 +98,26 @@ int main(int argc, char **argv) {
 
   map<char, size_t> char_to_idx;
   map<size_t, char> idx_to_char;
-  for (size_t i = 0; i < data.size(); i++) {
-    char c = data[i];
-    char_to_idx[c] = i;
-    idx_to_char[i] = c;
-  }
+  int chars_i = 0;
+  for (char c : chars) {
+    char_to_idx[c] = chars_i;
+    idx_to_char[chars_i] = c;
 
-  LSTM nn = LSTM(char_to_idx, idx_to_char, vocab_size, 25, 100, 0.9, 0.9999);
-  nn.train(data, 10, 0.01);
+	// cout << c << ":" << chars_i << endl;
+
+	chars_i++;
+}
+
+  try {
+    LSTM nn = LSTM(char_to_idx, idx_to_char, vocab_size, 25, 200);
+	nn.train(data, 10, 0.1);
+
+    // Matrix h_prev(25, 1, 0);
+    // Matrix c_prev(25, 1, 0);
+	// cout << nn.sample(h_prev, c_prev, 100) << endl;
+  } catch (char const *e) {
+    cerr << e << endl;
+  }
 
   return 0;
 }

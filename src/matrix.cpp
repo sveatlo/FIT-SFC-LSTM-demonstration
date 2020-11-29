@@ -1,3 +1,4 @@
+#include "matrix.h"
 #include <algorithm>
 #include <assert.h>
 #include <cmath>
@@ -8,16 +9,15 @@
 #include <random>
 #include <tuple>
 #include <vector>
-#include "matrix.h"
 
 using namespace std;
 
 Matrix::Matrix() {}
 
-Matrix::Matrix(vector<double>& m) {
-	this->rows = 1;
-	this->cols = m.size();
-	this->data = m;
+Matrix::Matrix(vector<double> &m) {
+  this->rows = 1;
+  this->cols = m.size();
+  this->data = m;
 }
 
 Matrix::Matrix(const Matrix &m) {
@@ -92,19 +92,46 @@ Matrix Matrix::operator-(Matrix &B) {
 }
 
 Matrix Matrix::operator*(Matrix &B) {
-  assert(B.cols != this->rows);
+  assert(this->rows == B.rows && this->cols == B.cols);
 
-  Matrix res(this->rows, B.cols, 0);
+  Matrix res(*this);
 
   double tmp = 0.0;
   for (size_t i = 0; i < this->rows; i++) {
     for (size_t j = 0; j < B.cols; j++) {
-      tmp = 0.0;
-      for (size_t k = 0; k < this->cols; k++) {
-        tmp += (*this)(i, k) * B(k, j);
-      }
+      res(i, j) *= B(i, j);
+    }
+  }
 
-      res(i, j) = tmp;
+  return res;
+
+  // assert(this->cols == B.rows);
+  //
+  // Matrix res(this->rows, B.cols, 0);
+  //
+  // for (size_t i = 0; i < this->rows; i++) {
+  //   for (size_t j = 0; j < B.cols; j++) {
+  //     double tmp = 0.0;
+  //     for (size_t k = 0; k < this->cols; k++) {
+  //       tmp += (*this)(i, k) * B(k, j);
+  //     }
+  //
+  //     res(i, j) = tmp;
+  //   }
+  // }
+  //
+  // return res;
+}
+
+Matrix Matrix::operator/(Matrix &B) {
+  assert(this->rows == B.rows && this->cols == B.cols);
+
+  Matrix res(*this);
+
+  double tmp = 0.0;
+  for (size_t i = 0; i < this->rows; i++) {
+    for (size_t j = 0; j < B.cols; j++) {
+      res(i, j) /= B(i, j);
     }
   }
 
@@ -180,6 +207,32 @@ Matrix Matrix::exp() {
   return res;
 }
 
+Matrix Matrix::sqrt() {
+  Matrix res(this->rows, this->cols, 0);
+
+  for (size_t i = 0; i < this->rows; i++) {
+    for (size_t j = 0; j < this->cols; j++) {
+      double v = (*this)(i, j);
+      res(i, j) = std::sqrt(v);
+    }
+  }
+
+  return res;
+}
+
+Matrix Matrix::pow(double p) {
+  Matrix res(this->rows, this->cols, 0);
+
+  for (size_t i = 0; i < this->rows; i++) {
+    for (size_t j = 0; j < this->cols; j++) {
+      double v = (*this)(i, j);
+      res(i, j) = std::pow(v, p);
+    }
+  }
+
+  return res;
+}
+
 Matrix Matrix::tanh() {
   Matrix res(this->rows, this->cols, 0);
 
@@ -207,29 +260,23 @@ Matrix Matrix::divides(double numerator) {
   return res;
 }
 
+Matrix Matrix::dot(Matrix &B) {
+  if (this->rows == 1 && B.rows == 1) {
+    B = B.transpose();
+  }
 
-Matrix Matrix::dot(Matrix& B) {
-	if(this->rows == 1 && B.rows == 1) {
-		B = B.transpose();
-	}
+  assert(this->cols == B.rows);
 
-	cout << "A shape = " << this->rows << "x" << this->cols << endl;
-	cout << "B shape = " << B.rows << "x" << B.cols << endl;
+  Matrix res(this->rows, B.cols, 0);
+  for (size_t i = 0; i < this->rows; i++) {
+    vector<double> row = this->row(i);
+    for (size_t j = 0; j < B.cols; j++) {
+      vector<double> col = B.column(j);
+      res(i, j) = inner_product(row.begin(), row.end(), col.begin(), 0);
+    }
+  }
 
-
-	assert(this->cols == B.rows);
-
-	Matrix res(this->rows, B.cols, 0);
-	for(size_t i = 0; i < this->rows; i++) {
-		vector<double> row = this->row(i);
-		for(size_t j = 0; j < B.cols; j++) {
-			cout << "A row " << i << " x B col " << j << endl;
-			vector<double> col = B.column(j);
-			res(i, j) = inner_product(row.begin(), row.end(), col.begin(), 0);
-		}
-	}
-
-	return res;
+  return res;
 }
 
 Matrix Matrix::clip(double min, double max) {
@@ -277,6 +324,20 @@ double Matrix::sum() {
   }
 
   return sum;
+}
+
+
+vector<double> Matrix::ravel() {
+	return vector<double>(this->data.begin(), this->data.end());
+}
+
+void Matrix::reshape(size_t _rows, size_t _cols) {
+	if (_rows * _cols != this->rows * this->cols) {
+		throw "Incompatible shape";
+	}
+
+	this->rows = _rows;
+	this->cols = _cols;
 }
 
 void Matrix::fill(double filler) {
@@ -330,18 +391,18 @@ size_t Matrix::rows_n() { return this->rows; }
 size_t Matrix::cols_n() { return this->cols; }
 
 vector<double> Matrix::row(size_t n) {
-	auto start = this->data.begin() + n * this->cols;
-	return vector<double>(start, start + this->cols);
+  auto start = this->data.begin() + n * this->cols;
+  return vector<double>(start, start + this->cols);
 }
 
 vector<double> Matrix::column(size_t n) {
-	vector<double> col;
+  vector<double> col;
 
-	for(size_t i = 0; i < this->rows; i++) {
-		col.push_back((*this)(i, n));
-	}
+  for (size_t i = 0; i < this->rows; i++) {
+    col.push_back((*this)(i, n));
+  }
 
-	return col;
+  return col;
 }
 
 void Matrix::randomize(double lower_bound, double upper_bound) {
@@ -360,7 +421,7 @@ Matrix Matrix::transpose() {
 
   for (size_t i = 0; i < this->rows; i++) {
     for (size_t j = 0; j < this->cols; j++) {
-      transposed(j,i) = (*this)(i,j);
+      transposed(j, i) = (*this)(i, j);
     }
   }
 

@@ -1,7 +1,7 @@
 .PHONY=run all build pack docs banner
 
 # build variables
-CFLAGS=-std=c++11  -lstdc++ -Wall -Wextra -O0 -g -lm
+CFLAGS=-std=c++11  -lstdc++ -Wall -Wextra -O2 -lm
 CC=gcc
 ## which modules should be build
 MODULES=log matrix lstm
