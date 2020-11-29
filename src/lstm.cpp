@@ -337,8 +337,7 @@ LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
     cout << "===============Epoch " << epoch
          << "============================" << endl;
     cout << "Loss: " << this->smooth_loss << endl;
-    cout << "Sample: ";
-    this->sample(h_prev, c_prev, 100);
+    cout << "Sample: " << this->sample(h_prev, c_prev, 100);
     cout << endl;
     cout << "==================================================" << endl;
   }
