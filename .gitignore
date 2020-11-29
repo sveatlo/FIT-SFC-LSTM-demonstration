@@ -1,2 +1,2 @@
-./dist/*
+./dist/lstm-nn
 *.o

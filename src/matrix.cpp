@@ -56,7 +56,9 @@ Matrix Matrix::randn(size_t rows, size_t cols) {
 	  d.push_back(distribution(generator));
   }
 
-  return Matrix(d);
+  Matrix rm = Matrix(d);
+  rm.reshape(rows, cols);
+  return rm;
 }
 
 

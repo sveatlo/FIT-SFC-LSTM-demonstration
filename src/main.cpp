@@ -102,12 +102,7 @@ int main(int argc, char **argv) {
   }
 
   // try {
-  //   vector<double> v(12);
-  //   int n=0;
-  //   std::generate(v.begin(), v.end(), [&]{ return ++n; });
-  //   Matrix a(v);
-  //   a.print();
-  //   a.reshape(9, 1);
+  //   Matrix a = Matrix::randn(3, 3);
   //   a.print();
   // } catch (char const *e) {
   //   cerr << e << endl;
@@ -153,7 +148,7 @@ int main(int argc, char **argv) {
     LSTM nn =
         LSTM(char_to_idx, idx_to_char, vocab_size, hidden_layers, sequence_len);
     LSTM_training_res res = nn.train(data, epochs, learning_rate);
-  cout << "================== Training finished =================" << endl;
+    cout << "================== Training finished =================" << endl;
 
     cout << "Losses progress: " << endl;
     for (auto &x : res.lossses) {

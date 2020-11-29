@@ -45,7 +45,7 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
   this->params.insert(make_pair("bo", bo));
 
   // output
-  Matrix wv = Matrix::randn(this->n_h, this->n_h);
+  Matrix wv(this->vocab_size, this->n_h, 1);
   Matrix bv(this->vocab_size, 1, 0);
   this->params.insert(make_pair("Wv", wv * (1 / sqrt(this->vocab_size))));
   this->params.insert(make_pair("bv", bv));
