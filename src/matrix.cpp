@@ -96,7 +96,6 @@ Matrix Matrix::operator*(Matrix &B) {
 
   Matrix res(*this);
 
-  double tmp = 0.0;
   for (size_t i = 0; i < this->rows; i++) {
     for (size_t j = 0; j < B.cols; j++) {
       res(i, j) *= B(i, j);
@@ -128,7 +127,6 @@ Matrix Matrix::operator/(Matrix &B) {
 
   Matrix res(*this);
 
-  double tmp = 0.0;
   for (size_t i = 0; i < this->rows; i++) {
     for (size_t j = 0; j < B.cols; j++) {
       res(i, j) /= B(i, j);
@@ -326,18 +324,17 @@ double Matrix::sum() {
   return sum;
 }
 
-
 vector<double> Matrix::ravel() {
-	return vector<double>(this->data.begin(), this->data.end());
+  return vector<double>(this->data.begin(), this->data.end());
 }
 
 void Matrix::reshape(size_t _rows, size_t _cols) {
-	if (_rows * _cols != this->rows * this->cols) {
-		throw "Incompatible shape";
-	}
+  if (_rows * _cols != this->rows * this->cols) {
+    throw "Incompatible shape";
+  }
 
-	this->rows = _rows;
-	this->cols = _cols;
+  this->rows = _rows;
+  this->cols = _cols;
 }
 
 void Matrix::fill(double filler) {

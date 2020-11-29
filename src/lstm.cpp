@@ -1,13 +1,13 @@
 #include "lstm.h"
 #include "matrix.h"
-#include <chrono>
 #include <algorithm>
-#include <random>
+#include <chrono>
 #include <float.h>
 #include <iostream>
-#include <sstream>
 #include <map>
 #include <math.h>
+#include <random>
+#include <sstream>
 #include <string>
 
 using namespace std;
@@ -98,17 +98,19 @@ void LSTM::update_params(double lr, size_t batch_n) {
   for (auto &item : this->params) {
     string key = item.first;
 
-	Matrix tmp =  this->grads["d" + key] * (1 - this->beta1);
-	this->adam_params["m" + key] = this->adam_params["m" + key] * this->beta1 + tmp;
+    Matrix tmp = this->grads["d" + key] * (1 - this->beta1);
+    this->adam_params["m" + key] =
+        this->adam_params["m" + key] * this->beta1 + tmp;
 
-	tmp = this->grads["d" + key].pow(2);
-	tmp = tmp * (1 - this->beta2);
-	this->adam_params["v" + key] = this->adam_params["v" + key] * this->beta2 + tmp;
+    tmp = this->grads["d" + key].pow(2);
+    tmp = tmp * (1 - this->beta2);
+    this->adam_params["v" + key] =
+        this->adam_params["v" + key] * this->beta2 + tmp;
 
-	Matrix m_correlated = this->adam_params["m" + key] /
-						  (1 - pow(this->beta1, static_cast<double>(batch_n)));
-	Matrix v_correlated = this->adam_params["v" + key] /
-						  (1 - pow(this->beta2, static_cast<double>(batch_n)));
+    Matrix m_correlated = this->adam_params["m" + key] /
+                          (1 - pow(this->beta1, static_cast<double>(batch_n)));
+    Matrix v_correlated = this->adam_params["v" + key] /
+                          (1 - pow(this->beta2, static_cast<double>(batch_n)));
 
     Matrix tmp1 = (m_correlated * lr);
     Matrix tmp2 = (v_correlated.sqrt() + 1e-5);
@@ -276,38 +278,34 @@ LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch,
   };
 }
 
-pair<vector<double>, map<string, Matrix>>
-LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
+LSTM_training_res LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
   int num_batches = _X.size() / this->seq_len;
   vector<char> X(_X.begin(), _X.begin() + num_batches * this->seq_len);
   vector<double> losses;
 
   for (size_t epoch = 0; epoch < epochs; epoch++) {
-	cout << "Starting epoch no." << epoch << " of " << X.size() / this->seq_len << " sequences" << endl;
+    cout << "Starting epoch no." << epoch << " of " << X.size() / this->seq_len
+         << " sequences" << endl;
     Matrix h_prev(this->n_h, 1, 0);
     Matrix c_prev(this->n_h, 1, 0);
 
-	int delete_n = 0;
+    int delete_n = 0;
     for (size_t i = 0; i < X.size(); i += this->seq_len) {
-	  for (size_t d = 0; d < delete_n; d++) {
-		  cout << "\b";
-	  }
+      for (int d = 0; d < delete_n; d++) {
+        cout << "\b";
+      }
 
       cout << ".";
 
-	  stringstream ss;
-	  ss << "(loss = " << this->smooth_loss << ")";
-	  cout << ss.str();
+      stringstream ss;
+      ss << "(loss = " << this->smooth_loss << ")";
+      cout << ss.str();
 
-	  delete_n = ss.str().length();
+      delete_n = ss.str().length();
 
       cout.flush();
 
-
-
-
       int batch_num = epoch * epochs + i / this->seq_len + 1;
-
 
       // prepare data
       vector<size_t> x_batch, y_batch;
@@ -319,7 +317,6 @@ LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
         char c = X[j];
         y_batch.push_back(this->char_to_idx[c]);
       }
-
 
       // forward-backward on batch
       LSTM_forward_backward_return batch_res =
@@ -342,7 +339,11 @@ LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
     cout << "==================================================" << endl;
   }
 
-  return make_pair(losses, this->params);
+  // return make_pair(losses, this->params);
+  return LSTM_training_res{
+	  .lossses = losses,
+	  .params = this->params,
+  };
 }
 
 string LSTM::sample(Matrix h_prev, Matrix c_prev, size_t size) {
@@ -354,14 +355,14 @@ string LSTM::sample(Matrix h_prev, Matrix c_prev, size_t size) {
   for (size_t i = 0; i < size; i++) {
     LSTM_step_data res = this->forward_step(x, h, c);
     vector<double> probabilities = res.y_hat.ravel();
-	h = res.h;
-	c = res.c;
+    h = res.h;
+    c = res.c;
 
+    std::discrete_distribution<int> distribution(probabilities.begin(),
+                                                 probabilities.end());
+    const size_t idx = distribution(this->sample_random_generator);
 
-    std::discrete_distribution<int> distribution(probabilities.begin(), probabilities.end());
-	const size_t idx = distribution(this->sample_random_generator);
-
-	sample += this->idx_to_char[idx];
+    sample += this->idx_to_char[idx];
   }
 
   return sample;

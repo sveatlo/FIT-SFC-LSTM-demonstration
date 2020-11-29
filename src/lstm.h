@@ -32,13 +32,18 @@ typedef struct {
   Matrix dc_prev;
 } LSTM_backward_return;
 
+typedef struct {
+	vector<double> lossses;
+	map<string, Matrix> params;
+} LSTM_training_res;
+
 class LSTM {
 public:
   LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
-           size_t _vocab_size, size_t _n_h = 100, size_t _seq_len = 25,
-           double _beta1 = 0.9, double _beta2 = 0.999);
+       size_t _vocab_size, size_t _n_h = 100, size_t _seq_len = 25,
+       double _beta1 = 0.9, double _beta2 = 0.999);
 
-  pair<vector<double>, map<string, Matrix>> train(vector<char> data,
+  LSTM_training_res train(vector<char> data,
                                                   size_t epochs, double lr);
   string sample(Matrix h_prev, Matrix c_prev, size_t size);
 
@@ -65,10 +70,9 @@ private:
   void update_params(double lr, size_t batch_n);
   LSTM_step_data forward_step(Matrix x, Matrix h_prev, Matrix c_prev);
   LSTM_backward_return backward_step(size_t y, Matrix y_hat, Matrix dh_next,
-                                         Matrix dc_next, Matrix c_prev,
-                                         Matrix z, Matrix f, Matrix i,
-                                         Matrix c_hat, Matrix c, Matrix o,
-                                         Matrix h);
+                                     Matrix dc_next, Matrix c_prev, Matrix z,
+                                     Matrix f, Matrix i, Matrix c_hat, Matrix c,
+                                     Matrix o, Matrix h);
   LSTM_forward_backward_return forward_backward(vector<size_t> x_batch,
                                                 vector<size_t> y_batch,
                                                 Matrix h_prev, Matrix c_prev);

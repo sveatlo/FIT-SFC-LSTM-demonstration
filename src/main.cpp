@@ -1,6 +1,7 @@
 #include "log.h"
 #include "lstm.h"
 #include "matrix.h"
+#include "stacktrace.h"
 #include <algorithm>
 #include <fstream>
 #include <getopt.h>
@@ -11,7 +12,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include "stacktrace.h"
 
 void print_help(string);
 vector<char> read_dataset(string &);
@@ -24,17 +24,25 @@ int main(int argc, char **argv) {
 
   string dataset_filepath;
   string losses_output_file;
+  double learning_rate = 0.001;
+  int epochs = 10;
+  int hidden_layers = 100;
+  int sequence_len = 200;
 
   int c;
   while (1) {
-    static struct option long_options[] = {{"help", no_argument, 0, 'h'},
-                                           {"filepath", no_argument, 0, 'f'},
-                                           {"losses-out", no_argument, 0, 'l'},
-                                           {0, 0, 0, 0}};
+    static struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"filepath", no_argument, 0, 'f'},
+        {"learning-rate", no_argument, 0, 'l'},
+        {"epochs", no_argument, 0, 'e'},
+        {"hidden-layers", no_argument, 0, 'i'},
+        {"sequence-length", no_argument, 0, 's'},
+        {0, 0, 0, 0}};
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv, "hf:l:", long_options, &option_index);
+    c = getopt_long(argc, argv, "hf:l:e:", long_options, &option_index);
 
     /* Detect the end of the options. */
     if (c == -1)
@@ -56,7 +64,34 @@ int main(int argc, char **argv) {
       break;
 
     case 'l':
-      losses_output_file = string(optarg);
+      learning_rate = stod(string(optarg));
+      break;
+
+    case 'e':
+      try {
+        epochs = stoi(optarg);
+      } catch (...) {
+        cout << "epochs must be integer";
+        exit(1);
+      }
+      break;
+
+    case 'i':
+      try {
+        hidden_layers = stoi(optarg);
+      } catch (...) {
+        cout << "number of hidden layers must be integer";
+        exit(1);
+      }
+      break;
+
+    case 's':
+      try {
+        sequence_len = stoi(optarg);
+      } catch (...) {
+        cout << "sequence length must be integer";
+        exit(1);
+      }
       break;
 
     case 'h':
@@ -80,7 +115,7 @@ int main(int argc, char **argv) {
   // return 0;
 
   if (dataset_filepath == "") {
-	dataset_filepath = "./data/HP1-short.txt";
+    dataset_filepath = "./data/HP1-short.txt";
     // cerr << "Invalid dataset filepath";
     // return 1;
   }
@@ -103,18 +138,24 @@ int main(int argc, char **argv) {
     char_to_idx[c] = chars_i;
     idx_to_char[chars_i] = c;
 
-	// cout << c << ":" << chars_i << endl;
+    // cout << c << ":" << chars_i << endl;
 
-	chars_i++;
-}
+    chars_i++;
+  }
 
   try {
-    LSTM nn = LSTM(char_to_idx, idx_to_char, vocab_size, 25, 200);
-	nn.train(data, 10, 0.1);
+    LSTM nn =
+        LSTM(char_to_idx, idx_to_char, vocab_size, hidden_layers, sequence_len);
+    LSTM_training_res res = nn.train(data, epochs, learning_rate);
+	cout << "Losses progress: " << endl;
+	for (auto &x : res.lossses) {
+		cout << x << " ";
+	}
+	cout << endl << endl;
 
-    // Matrix h_prev(25, 1, 0);
-    // Matrix c_prev(25, 1, 0);
-	// cout << nn.sample(h_prev, c_prev, 100) << endl;
+	Matrix h_prev(25, 1, 0);
+	Matrix c_prev(25, 1, 0);
+	cout << nn.sample(h_prev, c_prev, 100) << endl;
   } catch (char const *e) {
     cerr << e << endl;
   }
@@ -126,6 +167,10 @@ void print_help(string binary_path) {
   cout << binary_path << " [-h]" << endl;
   cout << "  -h --help\t\tShow this help" << endl;
   cout << "  -f --filepath\t\tPath to dataset file for training" << endl;
+  cout << "  -l --learning-rate\t\tLearning rate for training" << endl;
+  cout << "  -e --epochs\t\tNumber of epochs for training" << endl;
+  cout << "  -i --hidden-layers\t\tNumber of hidden layers" << endl;
+  cout << "  -s --sequence-length\t\tSequence length" << endl;
 }
 
 vector<char> read_dataset(string &filename) {
