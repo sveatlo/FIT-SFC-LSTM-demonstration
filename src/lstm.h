@@ -15,7 +15,7 @@ typedef struct {
   Matrix h;
   Matrix o;
   Matrix c;
-  Matrix c_hat;
+  Matrix c_bar;
   Matrix i;
   Matrix f;
   Matrix z;
@@ -71,7 +71,7 @@ private:
   LSTM_step_data forward_step(Matrix x, Matrix h_prev, Matrix c_prev);
   LSTM_backward_return backward_step(size_t y, Matrix y_hat, Matrix dh_next,
                                      Matrix dc_next, Matrix c_prev, Matrix z,
-                                     Matrix f, Matrix i, Matrix c_hat, Matrix c,
+                                     Matrix f, Matrix i, Matrix c_bar, Matrix c,
                                      Matrix o, Matrix h);
   LSTM_forward_backward_return forward_backward(vector<size_t> x_batch,
                                                 vector<size_t> y_batch,

@@ -90,28 +90,23 @@ void LSTM::reset_grads() {
 }
 
 void LSTM::update_params(double lr, size_t batch_n) {
-
   for (auto &item : this->params) {
     string key = item.first;
 
-    Matrix tmp = this->grads["d" + key] * (1 - this->beta1);
-    this->adam_params["m" + key] =
-        this->adam_params["m" + key] * this->beta1 + tmp;
+	Matrix tmp = this->grads["d" + key] * (1 - this->beta1);
+	this->adam_params["m" + key] = this->adam_params["m" + key] * this->beta1 + tmp;
 
-    tmp = this->grads["d" + key].pow(2);
-    tmp = tmp * (1 - this->beta2);
-    this->adam_params["v" + key] =
-        this->adam_params["v" + key] * this->beta2 + tmp;
+	tmp = this->grads["d" + key].pow(2);
+	tmp = tmp * (1 - this->beta2);
+	this->adam_params["v" + key] = this->adam_params["v" + key] * this->beta2 + tmp;
 
-    Matrix m_correlated = this->adam_params["m" + key] /
-                          (1 - pow(this->beta1, static_cast<double>(batch_n)));
-    Matrix v_correlated = this->adam_params["v" + key] /
-                          (1 - pow(this->beta2, static_cast<double>(batch_n)));
+	Matrix m_correlated = this->adam_params["m" + key] / (1 - pow(this->beta1, static_cast<double>(batch_n)));
+	Matrix v_correlated = this->adam_params["v" + key] / (1 - pow(this->beta2, static_cast<double>(batch_n)));
 
-    Matrix tmp1 = (m_correlated * lr);
-    Matrix tmp2 = (v_correlated.sqrt() + 1e-5);
-    tmp = tmp1 / tmp2;
-    this->params[key] = this->params[key] - tmp;
+	Matrix tmp1 = (m_correlated * lr);
+	Matrix tmp2 = (v_correlated.sqrt() + 1e-5);
+	tmp = tmp1 / tmp2;
+	this->params[key] = this->params[key] - tmp;
   }
 }
 
@@ -120,12 +115,13 @@ LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
 
   Matrix f = this->sigmoid(this->params["Wf"].dot(z) + this->params["bf"]);
   Matrix i = this->sigmoid(this->params["Wi"].dot(z) + this->params["bi"]);
-  Matrix c_hat = (this->params["Wc"].dot(z) + this->params["bc"]).tanh();
+  Matrix c_bar = (this->params["Wc"].dot(z) + this->params["bc"]).tanh();
   Matrix o = this->sigmoid(this->params["Wo"].dot(z) + this->params["bo"]);
 
-  Matrix ctmp = i * c_hat;
+  Matrix ctmp = i * c_bar;
   Matrix c = f * c_prev + ctmp;
-  Matrix h = c.tanh() * o;
+  Matrix c_tanh = c.tanh();
+  Matrix h = o * c_tanh;
   Matrix v = this->sigmoid(this->params["Wv"].dot(h) + this->params["bv"]);
   Matrix y_hat = this->softmax(v);
 
@@ -135,7 +131,7 @@ LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
       .h = h,
       .o = o,
       .c = c,
-      .c_hat = c_hat,
+      .c_bar = c_bar,
       .i = i,
       .f = f,
       .z = z,
@@ -147,7 +143,7 @@ LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
 LSTM_backward_return LSTM::backward_step(size_t y, Matrix y_hat, Matrix dh_next,
                                          Matrix dc_next, Matrix c_prev,
                                          Matrix z, Matrix f, Matrix i,
-                                         Matrix c_hat, Matrix c, Matrix o,
+                                         Matrix c_bar, Matrix c, Matrix o,
                                          Matrix h) {
 
   Matrix dv = y_hat;
@@ -175,14 +171,14 @@ LSTM_backward_return LSTM::backward_step(size_t y, Matrix y_hat, Matrix dh_next,
   Matrix dc = dh * o * tmp;
   dc = dc + dc_next;
 
-  Matrix dc_hat = dc * i;
-  tmp = ((c_hat.pow(2)) * -1) + 1;
-  Matrix da_c = dc_hat * tmp;
+  Matrix dc_bar = dc * i;
+  tmp = ((c_bar.pow(2)) * -1) + 1;
+  Matrix da_c = dc_bar * tmp;
   tmp = da_c.dot(zT);
   this->grads["dWc"] = this->grads["dWc"] + tmp;
   this->grads["dbc"] = this->grads["dbc"] + da_c;
 
-  Matrix di = dc * c_hat;
+  Matrix di = dc * c_bar;
   tmp = (i * -1 + 1);
   Matrix da_i = di * i * tmp;
   tmp = da_i.dot(zT);
@@ -228,7 +224,7 @@ LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch,
                                                     Matrix h_prev,
                                                     Matrix c_prev) {
   map<size_t, Matrix> x, z;
-  map<long int, Matrix> f, i, c, c_hat, o;
+  map<long int, Matrix> f, i, c, c_bar, o;
   map<long int, Matrix> y_hat, v, h;
 
   h[-1] = h_prev;
@@ -246,7 +242,7 @@ LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch,
     h[t] = forward_res.h;
     o[t] = forward_res.o;
     c[t] = forward_res.c;
-    c_hat[t] = forward_res.c_hat;
+    c_bar[t] = forward_res.c_bar;
     i[t] = forward_res.i;
     f[t] = forward_res.f;
     z[t] = forward_res.z;
@@ -262,7 +258,7 @@ LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch,
   for (size_t t = this->seq_len - 1; t > 0; t--) {
     LSTM_backward_return backward_res =
         this->backward_step(y_batch[t], y_hat[t], dh_next, dc_next, c[t - 1],
-                            z[t], f[t], i[t], c_hat[t], c[t], o[t], h[t]);
+                            z[t], f[t], i[t], c_bar[t], c[t], o[t], h[t]);
     dh_next = backward_res.dh_prev;
     dc_next = backward_res.dc_prev;
   }
