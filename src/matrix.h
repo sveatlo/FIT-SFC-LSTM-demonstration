@@ -3,6 +3,7 @@
 
 #include <tuple>
 #include <vector>
+#include <random>
 
 using namespace std;
 
@@ -14,6 +15,8 @@ public:
   ~Matrix();                         // Destructor
   Matrix(const Matrix &);            // Copy constructor
   Matrix &operator=(const Matrix &); // Assignment operator
+
+  static Matrix randn(size_t rows, size_t cols);
 
   // matrix operations
   Matrix operator+(Matrix &);
@@ -49,7 +52,6 @@ public:
   Matrix hstack(Matrix &);
   Matrix vstack(Matrix &);
   Matrix transpose();
-  void randomize(double, double);
   tuple<size_t, size_t> shape();
   size_t rows_n();
   size_t cols_n();

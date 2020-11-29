@@ -21,36 +21,31 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
   double std = 1.0 / sqrt(this->vocab_size + this->n_h);
 
   // forget gate
-  Matrix wf = Matrix(this->n_h, this->n_h + this->vocab_size, 0);
-  wf.randomize(-1, 1);
+  Matrix wf = Matrix::randn(this->n_h, this->n_h + this->vocab_size);
   Matrix bf = Matrix(this->n_h, 1, 1);
   this->params.insert(make_pair("Wf", wf * std));
   this->params.insert(make_pair("bf", bf));
 
   // input gate
-  Matrix wi(this->n_h, this->n_h + this->vocab_size, 0);
-  wi.randomize(-1, 1);
+  Matrix wi = Matrix::randn(this->n_h, this->n_h + this->vocab_size);
   Matrix bi(this->n_h, 1, 0);
   this->params.insert(make_pair("Wi", wi * std));
   this->params.insert(make_pair("bi", bi));
 
   // cell state gate
-  Matrix wc(this->n_h, this->n_h + this->vocab_size, 0);
-  wc.randomize(-1, 1);
+  Matrix wc = Matrix::randn(this->n_h, this->n_h + this->vocab_size);
   Matrix bc(this->n_h, 1, 0);
   this->params.insert(make_pair("Wc", wc * std));
   this->params.insert(make_pair("bc", bc));
 
   // output gate
-  Matrix wo(this->n_h, this->n_h + this->vocab_size, 0);
-  wo.randomize(-1, 1);
+  Matrix wo = Matrix::randn(this->n_h, this->n_h + this->vocab_size);
   Matrix bo(this->n_h, 1, 0);
   this->params.insert(make_pair("Wo", wo * std));
   this->params.insert(make_pair("bo", bo));
 
   // output
-  Matrix wv(this->vocab_size, this->n_h, 1);
-  wv.randomize(-1, 1);
+  Matrix wv = Matrix::randn(this->n_h, this->n_h);
   Matrix bv(this->vocab_size, 1, 0);
   this->params.insert(make_pair("Wv", wv * (1 / sqrt(this->vocab_size))));
   this->params.insert(make_pair("bv", bv));

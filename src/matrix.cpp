@@ -1,5 +1,6 @@
 #include "matrix.h"
 #include <algorithm>
+#include <chrono>
 #include <assert.h>
 #include <cmath>
 #include <float.h>
@@ -44,6 +45,21 @@ Matrix &Matrix::operator=(const Matrix &m) {
 
   return *this;
 }
+
+Matrix Matrix::randn(size_t rows, size_t cols) {
+  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+  std::default_random_engine generator(seed);
+  std::normal_distribution<double> distribution(0,1);
+
+  vector<double> d;
+  for (size_t i = 0; i < rows*cols; i++) {
+	  d.push_back(distribution(generator));
+  }
+
+  return Matrix(d);
+}
+
+
 
 double &Matrix::operator()(const size_t &row, const size_t &col) {
   if (row >= this->rows || col >= this->cols)
@@ -402,16 +418,16 @@ vector<double> Matrix::column(size_t n) {
   return col;
 }
 
-void Matrix::randomize(double lower_bound, double upper_bound) {
-  std::uniform_real_distribution<double> unif(lower_bound, upper_bound);
-  std::default_random_engine re;
-
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      (*this)(i, j) = unif(re);
-    }
-  }
-}
+// void Matrix::randomize(double lower_bound, double upper_bound) {
+//   std::uniform_real_distribution<double> unif(lower_bound, upper_bound);
+//   std::default_random_engine re;
+//
+//   for (size_t i = 0; i < this->rows; i++) {
+//     for (size_t j = 0; j < this->cols; j++) {
+//       (*this)(i, j) = unif(re);
+//     }
+//   }
+// }
 
 Matrix Matrix::transpose() {
   Matrix transposed(this->cols, this->rows, 0);
