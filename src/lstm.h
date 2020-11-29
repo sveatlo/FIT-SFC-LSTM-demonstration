@@ -11,7 +11,7 @@ using namespace std;
 
 typedef struct {
   Matrix y_hat;
-  Matrix v;
+  Matrix y;
   Matrix h;
   Matrix o;
   Matrix c;
@@ -19,17 +19,29 @@ typedef struct {
   Matrix i;
   Matrix f;
   Matrix z;
-} LSTM_step_data;
+  Matrix c_prev;
+  Matrix h_prev;
+} LSTM_cell_data;
 
 typedef struct {
   double loss;
   Matrix h;
   Matrix c;
-} LSTM_forward_backward_return;
+} LSTM_optimization_res;
 
 typedef struct {
   Matrix dh_prev;
   Matrix dc_prev;
+  Matrix dWf;
+  Matrix dbf;
+  Matrix dWi;
+  Matrix dbi;
+  Matrix dWc;
+  Matrix dbc;
+  Matrix dWo;
+  Matrix dbo;
+  Matrix dWy;
+  Matrix dby;
 } LSTM_backward_return;
 
 typedef struct {
@@ -65,17 +77,15 @@ private:
 
   Matrix sigmoid(Matrix);
   Matrix softmax(Matrix);
+  Matrix one_hot_encode(size_t);
   void clip_grads();
   void reset_grads();
-  void update_params(double lr, size_t batch_n);
-  LSTM_step_data forward_step(Matrix x, Matrix h_prev, Matrix c_prev);
-  LSTM_backward_return backward_step(size_t y, Matrix y_hat, Matrix dh_next,
-                                     Matrix dc_next, Matrix c_prev, Matrix z,
-                                     Matrix f, Matrix i, Matrix c_bar, Matrix c,
-                                     Matrix o, Matrix h);
-  LSTM_forward_backward_return forward_backward(vector<size_t> x_batch,
+  void update_params(double lr);
+  LSTM_cell_data cell_forward(Matrix x, Matrix h_prev, Matrix c_prev);
+  LSTM_backward_return cell_backward(Matrix dh_next, Matrix dc_next, size_t char_idx, LSTM_cell_data cd);
+  LSTM_optimization_res optimize(vector<size_t> x_batch,
                                                 vector<size_t> y_batch,
-                                                Matrix h_prev, Matrix c_prev);
+                                                Matrix h_prev, Matrix c_prev, double lr);
 };
 
 #endif

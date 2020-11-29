@@ -52,6 +52,8 @@ public:
   Matrix hstack(Matrix &);
   Matrix vstack(Matrix &);
   Matrix transpose();
+  Matrix sum_rows();
+
   tuple<size_t, size_t> shape();
   size_t rows_n();
   size_t cols_n();

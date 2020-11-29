@@ -1,7 +1,7 @@
 #include "matrix.h"
 #include <algorithm>
-#include <chrono>
 #include <assert.h>
+#include <chrono>
 #include <cmath>
 #include <float.h>
 #include <iostream>
@@ -49,19 +49,17 @@ Matrix &Matrix::operator=(const Matrix &m) {
 Matrix Matrix::randn(size_t rows, size_t cols) {
   unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
   std::default_random_engine generator(seed);
-  std::normal_distribution<double> distribution(0,1);
+  std::normal_distribution<double> distribution(0, 1);
 
   vector<double> d;
-  for (size_t i = 0; i < rows*cols; i++) {
-	  d.push_back(distribution(generator));
+  for (size_t i = 0; i < rows * cols; i++) {
+    d.push_back(distribution(generator));
   }
 
   Matrix rm = Matrix(d);
   rm.reshape(rows, cols);
   return rm;
 }
-
-
 
 double &Matrix::operator()(const size_t &row, const size_t &col) {
   if (row >= this->rows || col >= this->cols)
@@ -441,6 +439,18 @@ Matrix Matrix::transpose() {
   }
 
   return transposed;
+}
+
+Matrix Matrix::sum_rows() {
+  Matrix res(this->rows, 1, 0);
+
+  for (size_t i = 0; i < this->rows; i++) {
+    for (size_t j = 0; j < this->cols; j++) {
+      res(i, 0) += (*this)(i, j);
+    }
+  }
+
+  return res;
 }
 
 void Matrix::print() const {

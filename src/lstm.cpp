@@ -18,6 +18,7 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
     : char_to_idx(_char_to_idx), idx_to_char(_idx_to_char),
       vocab_size(_vocab_size), n_h(_n_h), seq_len(_seq_len), beta1(_beta1),
       beta2(_beta2) {
+
   double std = 1.0 / sqrt(this->vocab_size + this->n_h);
 
   // forget gate
@@ -45,10 +46,10 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
   this->params.insert(make_pair("bo", bo));
 
   // output
-  Matrix wv(this->vocab_size, this->n_h, 1);
-  Matrix bv(this->vocab_size, 1, 0);
-  this->params.insert(make_pair("Wv", wv * (1 / sqrt(this->vocab_size))));
-  this->params.insert(make_pair("bv", bv));
+  Matrix wy(this->vocab_size, this->n_h, 1);
+  Matrix by(this->vocab_size, 1, 0);
+  this->params.insert(make_pair("Wy", wy * (1 / sqrt(this->vocab_size))));
+  this->params.insert(make_pair("by", by));
 
   for (auto const &item : this->params) {
     string param_name = item.first;
@@ -77,6 +78,12 @@ Matrix LSTM::softmax(Matrix x) {
   return e_x / e_x.sum();
 }
 
+Matrix LSTM::one_hot_encode(size_t c) {
+  Matrix m(this->vocab_size, 1, 0);
+  m(c, 0) = 1;
+  return m;
+}
+
 void LSTM::clip_grads() {
   for (auto &item : this->grads) {
     item.second.clip(-5, 5);
@@ -89,28 +96,56 @@ void LSTM::reset_grads() {
   }
 }
 
-void LSTM::update_params(double lr, size_t batch_n) {
+
+void LSTM::update_params(double lr) {
+  size_t batch_n = 100;
   for (auto &item : this->params) {
     string key = item.first;
 
-	Matrix tmp = this->grads["d" + key] * (1 - this->beta1);
-	this->adam_params["m" + key] = this->adam_params["m" + key] * this->beta1 + tmp;
+        Matrix tmp = this->grads["d" + key] * (1 - this->beta1);
+        this->adam_params["m" + key] = this->adam_params["m" + key] * this->beta1 + tmp;
 
-	tmp = this->grads["d" + key].pow(2);
-	tmp = tmp * (1 - this->beta2);
-	this->adam_params["v" + key] = this->adam_params["v" + key] * this->beta2 + tmp;
+        tmp = this->grads["d" + key].pow(2);
+        tmp = tmp * (1 - this->beta2);
+        this->adam_params["v" + key] = this->adam_params["v" + key] * this->beta2 + tmp;
 
-	Matrix m_correlated = this->adam_params["m" + key] / (1 - pow(this->beta1, static_cast<double>(batch_n)));
-	Matrix v_correlated = this->adam_params["v" + key] / (1 - pow(this->beta2, static_cast<double>(batch_n)));
+        Matrix m_correlated = this->adam_params["m" + key] / (1 - pow(this->beta1, static_cast<double>(batch_n)));
+        Matrix v_correlated = this->adam_params["v" + key] / (1 - pow(this->beta2, static_cast<double>(batch_n)));
 
-	Matrix tmp1 = (m_correlated * lr);
-	Matrix tmp2 = (v_correlated.sqrt() + 1e-5);
-	tmp = tmp1 / tmp2;
-	this->params[key] = this->params[key] - tmp;
+        Matrix tmp1 = (m_correlated * lr);
+        Matrix tmp2 = (v_correlated.sqrt() + 1e-5);
+        tmp = tmp1 / tmp2;
+        this->params[key] = this->params[key] - tmp;
   }
 }
+// void LSTM::update_params(double lr) {
+//   for (auto &x : this->params) {
+//     string key = x.first;
+//
+//     Matrix tmp;
+//     Matrix d = this->grads["d" + key];
+//     Matrix m_param = this->adam_params["m" + key];
+//     Matrix v_param = this->adam_params["m" + key];
+//
+//     tmp = d.pow(2) * (1 - this->beta2);
+//     m_param = m_param * this->beta2 + tmp;
+//     this->adam_params["m" + key] = m_param;
+//
+//     tmp = d * (1 - this->beta1);
+//     v_param = v_param * this->beta1 + tmp;
+//     this->adam_params["v" + key] = v_param;
+//
+//     // param = param - learning_rate*((vparam)/(np.sqrt(m_param) + 1e-6))
+//     tmp = m_param.sqrt() + 1e-6;
+//     tmp = (v_param / tmp) * lr;
+//     this->params[key] = this->params[key] - tmp;
+//   }
+// }
+//
+LSTM_cell_data LSTM::cell_forward(Matrix x, Matrix h_prev, Matrix c_prev) {
+  Matrix tmp;
 
-LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
+  // concatenated dataset [h_prev, x]
   Matrix z = h_prev.vstack(x);
 
   Matrix f = this->sigmoid(this->params["Wf"].dot(z) + this->params["bf"]);
@@ -118,16 +153,18 @@ LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
   Matrix c_bar = (this->params["Wc"].dot(z) + this->params["bc"]).tanh();
   Matrix o = this->sigmoid(this->params["Wo"].dot(z) + this->params["bo"]);
 
-  Matrix ctmp = i * c_bar;
-  Matrix c = f * c_prev + ctmp;
-  Matrix c_tanh = c.tanh();
-  Matrix h = o * c_tanh;
-  Matrix v = this->sigmoid(this->params["Wv"].dot(h) + this->params["bv"]);
-  Matrix y_hat = this->softmax(v);
+  tmp = i * c_bar;
+  Matrix c = f * c_prev + tmp;
+  tmp = c.tanh();
+  Matrix h = o * tmp;
 
-  LSTM_step_data step_data = {
+  // Matrix y = this->sigmoid(this->params["Wy"].dot(h) + this->params["by"]);
+  Matrix y = this->params["Wy"].dot(h) + this->params["by"];
+  Matrix y_hat = this->softmax(y);
+
+  LSTM_cell_data step_data = {
       .y_hat = y_hat,
-      .v = v,
+      .y = y,
       .h = h,
       .o = o,
       .c = c,
@@ -135,138 +172,126 @@ LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
       .i = i,
       .f = f,
       .z = z,
+      .c_prev = c_prev,
+      .h_prev = h_prev,
   };
 
   return step_data;
 }
 
-LSTM_backward_return LSTM::backward_step(size_t y, Matrix y_hat, Matrix dh_next,
-                                         Matrix dc_next, Matrix c_prev,
-                                         Matrix z, Matrix f, Matrix i,
-                                         Matrix c_bar, Matrix c, Matrix o,
-                                         Matrix h) {
+LSTM_backward_return LSTM::cell_backward(Matrix dh_next, Matrix dc_next, size_t char_idx, LSTM_cell_data cd) {
+	LSTM_backward_return r;
+	Matrix tmp;
+	Matrix hT = cd.h.transpose();
+	Matrix zT = cd.z.transpose();
 
-  Matrix dv = y_hat;
-  dv(y, 0) -= 1;
+	Matrix dy = cd.y_hat;
+	dy(char_idx, 0) -= 1;
+	r.dWy = dy.dot(hT);
+	r.dby = dy;
 
-  Matrix hT = h.transpose();
-  Matrix tmp = dv.dot(hT);
-  this->grads["dWv"] = this->grads["dWv"] + tmp;
-  this->grads["dbv"] = this->grads["dbv"] + dv;
+	Matrix dh = this->params["Wy"].transpose().dot(dy) + dh_next;
+	tmp = cd.c.tanh();
+	Matrix do_ = dh * tmp;
 
-  Matrix wvT = this->params["Wv"].transpose();
-  Matrix dh = wvT.dot(dv) + dh_next;
+	tmp = (cd.o * -1 + 1);
+    Matrix da_o = do_ * cd.o * tmp;
+    r.dWo = da_o.dot(zT);
+    r.dbo = da_o;
 
-  Matrix c_tanh = c.tanh();
-  Matrix do_ = dh * c_tanh;
-  Matrix one_minus_o = (o * -1 + 1); // 1 - o
-  Matrix da_o = do_ * o * one_minus_o;
-  Matrix zT = z.transpose();
-  tmp = da_o.dot(zT);
-  this->grads["dWo"] = this->grads["dWo"] + tmp;
-  this->grads["dbo"] = this->grads["dbo"] + da_o;
+	tmp = (cd.c.tanh() * -1 + 1).pow(2);
+	Matrix dc = dh * cd.o * tmp + dc_next;
 
-  tmp = c.tanh().pow(2);
-  tmp = (tmp * -1) + 1;
-  Matrix dc = dh * o * tmp;
-  dc = dc + dc_next;
+	Matrix dc_bar = dc * cd.i;
+	tmp = (cd.c_bar.pow(2) * -1 + 1);
+	Matrix da_c = dc_bar * tmp;
+	r.dWc = da_c.dot(zT);
+	r.dbc = da_c;
 
-  Matrix dc_bar = dc * i;
-  tmp = ((c_bar.pow(2)) * -1) + 1;
-  Matrix da_c = dc_bar * tmp;
-  tmp = da_c.dot(zT);
-  this->grads["dWc"] = this->grads["dWc"] + tmp;
-  this->grads["dbc"] = this->grads["dbc"] + da_c;
+	Matrix di = dc * cd.c_bar;
+	tmp = (cd.i * -1 + 1);
+	Matrix da_i = di * cd.i * tmp;
+	r.dWi = da_i.dot(zT);
+	r.dbi = da_i;
 
-  Matrix di = dc * c_bar;
-  tmp = (i * -1 + 1);
-  Matrix da_i = di * i * tmp;
-  tmp = da_i.dot(zT);
-  this->grads["dWi"] = this->grads["dWi"] + tmp;
-  this->grads["dbi"] = this->grads["dbi"] + da_i;
+	Matrix df = dc * cd.c_prev;
+	tmp = (cd.f * -1 + 1);
+	Matrix da_f = df * cd.f * tmp;
+	r.dWf = da_f.dot(zT);
+	r.dbf = da_f;
 
-  Matrix df = dc * c_prev;
-  tmp = (f * -1 + 1);
-  Matrix da_f = df * f * tmp;
-  tmp = da_f.dot(zT);
-  this->grads["dWf"] = this->grads["dWf"] + tmp;
-  this->grads["dbf"] = this->grads["dbf"] + da_f;
 
-  Matrix dz = this->params["Wf"].transpose();
-  dz = dz.dot(da_f);
+	tmp = this->params["Wf"].transpose().dot(da_f);
+	Matrix dh_prev_full = tmp;
+	tmp = this->params["Wi"].transpose().dot(da_i);
+	dh_prev_full = dh_prev_full + tmp;
+	tmp = this->params["Wc"].transpose().dot(da_c);
+	dh_prev_full = dh_prev_full + tmp;
+	tmp = this->params["Wo"].transpose().dot(da_o);
+	dh_prev_full = dh_prev_full + tmp;
 
-  tmp = this->params["Wi"].transpose();
-  tmp = tmp.dot(da_i);
-  dz = dz + tmp;
-  tmp = this->params["Wc"].transpose();
-  tmp = tmp.dot(da_c);
-  dz = dz + tmp;
-  tmp = this->params["Wo"].transpose();
-  tmp = tmp.dot(da_o);
-  dz = dz + tmp;
+	vector<double> dh_prev_data = dh_prev_full.ravel();
+	dh_prev_data =
+	  vector<double>(dh_prev_data.begin(),
+					 dh_prev_data.begin() + this->n_h * dh_prev_full.cols_n());
+	r.dh_prev = Matrix(dh_prev_data);
+	r.dh_prev.reshape(this->n_h, 1);
 
-  auto x = dz.ravel();
-  x = vector<double>(x.begin(), x.begin() + this->n_h);
+	r.dc_prev = cd.f * dc;
 
-  Matrix dh_prev(x);
-  dh_prev.reshape(this->n_h, 1);
-
-  Matrix dc_prev = f * dc;
-
-  return LSTM_backward_return{
-      .dh_prev = dh_prev,
-      .dc_prev = dc_prev,
-  };
+	return r;
 }
 
-LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch,
-                                                    vector<size_t> y_batch,
-                                                    Matrix h_prev,
-                                                    Matrix c_prev) {
-  map<size_t, Matrix> x, z;
-  map<long int, Matrix> f, i, c, c_bar, o;
-  map<long int, Matrix> y_hat, v, h;
-
-  h[-1] = h_prev;
-  c[-1] = c_prev;
+LSTM_optimization_res LSTM::optimize(vector<size_t> x_batch,
+                                     vector<size_t> y_batch, Matrix h_prev,
+                                     Matrix c_prev, double lr) {
+  vector<LSTM_cell_data> progress;
+  LSTM_cell_data init;
+  init.h = h_prev, init.c = c_prev, progress.push_back(init);
 
   double loss = 0;
-  for (size_t t = 0; t < this->seq_len; t++) {
-    x[t] = Matrix(this->vocab_size, 1, 0);
-    x[t](x_batch[t], 0) = 1;
+  // run forward on all steps
+  for (size_t t = 1; t < this->seq_len + 1; t++) { // index 0 = init, starting from 1
+    Matrix x_t = this->one_hot_encode(x_batch[t-1]);
+    Matrix y_t = this->one_hot_encode(y_batch[t-1]);
 
-    LSTM_step_data forward_res = this->forward_step(x[t], h[t - 1], c[t - 1]);
+    LSTM_cell_data res =
+        this->cell_forward(x_t, progress.back().h, progress.back().c);
+    progress.push_back(res);
 
-    y_hat[t] = forward_res.y_hat;
-    v[t] = forward_res.v;
-    h[t] = forward_res.h;
-    o[t] = forward_res.o;
-    c[t] = forward_res.c;
-    c_bar[t] = forward_res.c_bar;
-    i[t] = forward_res.i;
-    f[t] = forward_res.f;
-    z[t] = forward_res.z;
-
-    loss += -1 * log(y_hat[t](y_batch[t], 0));
+    // loss += (y_t - res.y_hat).pow(2).sum();
+	loss += -1 * log(res.y_hat(y_batch[t-1], 0));
   }
 
+  // run backward accumulating gradients
   this->reset_grads();
-
-  Matrix dh_next(h[0].rows_n(), h[0].cols_n(), 0);
-  Matrix dc_next(c[0].rows_n(), c[0].cols_n(), 0);
-
-  for (size_t t = this->seq_len - 1; t > 0; t--) {
+  Matrix dh_next(progress.front().h.rows_n(), progress.front().h.cols_n(), 0);
+  Matrix dc_next(progress.front().c.rows_n(), progress.front().c.cols_n(), 0);
+  for (size_t t = this->seq_len; t > 0; t--) { // forward pass ended at index this->seq_len because it started at 1, not 0
     LSTM_backward_return backward_res =
-        this->backward_step(y_batch[t], y_hat[t], dh_next, dc_next, c[t - 1],
-                            z[t], f[t], i[t], c_bar[t], c[t], o[t], h[t]);
+        this->cell_backward(dh_next, dc_next, y_batch[t-1], progress.at(t));
+
     dh_next = backward_res.dh_prev;
     dc_next = backward_res.dc_prev;
+
+    this->grads["dWf"] = this->grads["dWf"] + backward_res.dWf;
+    this->grads["dWi"] = this->grads["dWi"] + backward_res.dWi;
+    this->grads["dWc"] = this->grads["dWc"] + backward_res.dWc;
+    this->grads["dWo"] = this->grads["dWo"] + backward_res.dWo;
+    this->grads["dbf"] = this->grads["dbf"] + backward_res.dbf;
+    this->grads["dbi"] = this->grads["dbi"] + backward_res.dbi;
+    this->grads["dbc"] = this->grads["dbc"] + backward_res.dbc;
+    this->grads["dbo"] = this->grads["dbo"] + backward_res.dbo;
   }
 
-  return LSTM_forward_backward_return{
+  // update
+  // this->clip_grads();
+  this->update_params(lr);
+
+  return LSTM_optimization_res{
       .loss = loss,
-      .h = h[this->seq_len],
-      .c = c[this->seq_len],
+      .h = progress.back().h,
+      .c = progress.back().c,
   };
 }
 
@@ -298,7 +323,7 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
 
       cout.flush();
 
-      int batch_num = epoch * epochs + i / this->seq_len + 1;
+      // int batch_num = epoch * epochs + i / this->seq_len + 1;
 
       // prepare data
       vector<size_t> x_batch, y_batch;
@@ -312,16 +337,12 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
       }
 
       // forward-backward on batch
-      LSTM_forward_backward_return batch_res =
-          this->forward_backward(x_batch, y_batch, h_prev, c_prev);
+      LSTM_optimization_res batch_res =
+          this->optimize(x_batch, y_batch, h_prev, c_prev, lr);
 
-	  this->smooth_loss = batch_res.loss;
-	  // this->smooth_loss = this->smooth_loss * 0.999 + batch_res.loss * 0.001;
+      // this->smooth_loss = this->smooth_loss * 0.999 + batch_res.loss * 0.001;
+      this->smooth_loss = batch_res.loss;
       losses.push_back(this->smooth_loss);
-
-      this->clip_grads();
-
-      this->update_params(lr, batch_num);
     }
 
     cout << endl;
@@ -347,7 +368,7 @@ string LSTM::sample(Matrix h_prev, Matrix c_prev, size_t size) {
 
   string sample = "";
   for (size_t i = 0; i < size; i++) {
-    LSTM_step_data res = this->forward_step(x, h, c);
+    LSTM_cell_data res = this->cell_forward(x, h, c);
     vector<double> probabilities = res.y_hat.ravel();
     h = res.h;
     c = res.c;
