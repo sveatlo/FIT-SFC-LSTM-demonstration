@@ -278,7 +278,8 @@ LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch,
   };
 }
 
-LSTM_training_res LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
+LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
+                              double lr = 0.001) {
   int num_batches = _X.size() / this->seq_len;
   vector<char> X(_X.begin(), _X.begin() + num_batches * this->seq_len);
   vector<double> losses;
@@ -331,18 +332,18 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001)
     }
 
     cout << endl;
-    cout << "===============Epoch " << epoch
-         << "============================" << endl;
+    cout << "---------------Epoch " << epoch << "----------------------------"
+         << endl;
     cout << "Loss: " << this->smooth_loss << endl;
     cout << "Sample: " << this->sample(h_prev, c_prev, 100);
     cout << endl;
-    cout << "==================================================" << endl;
+    cout << "--------------------------------------------------" << endl;
   }
 
   // return make_pair(losses, this->params);
   return LSTM_training_res{
-	  .lossses = losses,
-	  .params = this->params,
+      .lossses = losses,
+      .params = this->params,
   };
 }
 

@@ -143,19 +143,27 @@ int main(int argc, char **argv) {
     chars_i++;
   }
 
+  cout << "======================================================" << endl;
+  cout << "Training with following parameters:" << endl;
+  cout << "\tlearning rate: " << learning_rate << endl;
+  cout << "\tno. of epochs: " << epochs << endl;
+  cout << "\tnumber of hidden layers: " << hidden_layers << endl;
+  cout << "\tsequence_length: " << hidden_layers << endl;
   try {
     LSTM nn =
         LSTM(char_to_idx, idx_to_char, vocab_size, hidden_layers, sequence_len);
     LSTM_training_res res = nn.train(data, epochs, learning_rate);
-	cout << "Losses progress: " << endl;
-	for (auto &x : res.lossses) {
-		cout << x << " ";
-	}
-	cout << endl << endl;
+  cout << "================== Training finished =================" << endl;
 
-	Matrix h_prev(25, 1, 0);
-	Matrix c_prev(25, 1, 0);
-	cout << nn.sample(h_prev, c_prev, 100) << endl;
+    cout << "Losses progress: " << endl;
+    for (auto &x : res.lossses) {
+      cout << x << " ";
+    }
+    cout << endl << endl;
+
+    Matrix h_prev(25, 1, 0);
+    Matrix c_prev(25, 1, 0);
+    cout << nn.sample(h_prev, c_prev, 100) << endl;
   } catch (char const *e) {
     cerr << e << endl;
   }
