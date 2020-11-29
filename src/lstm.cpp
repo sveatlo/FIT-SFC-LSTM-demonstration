@@ -116,11 +116,11 @@ void LSTM::update_params(double lr, size_t batch_n) {
 }
 
 LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
-  Matrix z = x.vstack(h_prev);
+  Matrix z = h_prev.vstack(x);
 
   Matrix f = this->sigmoid(this->params["Wf"].dot(z) + this->params["bf"]);
   Matrix i = this->sigmoid(this->params["Wi"].dot(z) + this->params["bi"]);
-  Matrix c_hat = this->sigmoid(this->params["Wc"].dot(z) + this->params["bc"]);
+  Matrix c_hat = (this->params["Wc"].dot(z) + this->params["bc"]).tanh();
   Matrix o = this->sigmoid(this->params["Wo"].dot(z) + this->params["bo"]);
 
   Matrix ctmp = i * c_hat;
