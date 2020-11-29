@@ -95,6 +95,7 @@ void LSTM::reset_grads() {
 }
 
 void LSTM::update_params(double lr, size_t batch_n) {
+
   for (auto &item : this->params) {
     string key = item.first;
 
@@ -323,7 +324,8 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
       LSTM_forward_backward_return batch_res =
           this->forward_backward(x_batch, y_batch, h_prev, c_prev);
 
-      this->smooth_loss = this->smooth_loss * 0.999 + batch_res.loss * 0.001;
+	  this->smooth_loss = batch_res.loss;
+	  // this->smooth_loss = this->smooth_loss * 0.999 + batch_res.loss * 0.001;
       losses.push_back(this->smooth_loss);
 
       this->clip_grads();
