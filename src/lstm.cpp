@@ -46,9 +46,9 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
 
   // output
   Matrix wv(this->vocab_size, this->n_h, 1);
-  Matrix bv(this->vocab_size, 1, 0);
-  this->params.insert(make_pair("Wv", wv * (1 / sqrt(this->vocab_size))));
-  this->params.insert(make_pair("bv", bv));
+  Matrix by(this->vocab_size, 1, 0);
+  this->params.insert(make_pair("Wy", wv * (1 / sqrt(this->vocab_size))));
+  this->params.insert(make_pair("by", by));
 
   for (auto const &item : this->params) {
     string param_name = item.first;
@@ -122,7 +122,7 @@ LSTM_step_data LSTM::forward_step(Matrix x, Matrix h_prev, Matrix c_prev) {
   Matrix c = f * c_prev + ctmp;
   Matrix c_tanh = c.tanh();
   Matrix h = o * c_tanh;
-  Matrix v = this->sigmoid(this->params["Wv"].dot(h) + this->params["bv"]);
+  Matrix v = this->sigmoid(this->params["Wy"].dot(h) + this->params["by"]);
   Matrix y_hat = this->softmax(v);
 
   LSTM_step_data step_data = {
@@ -146,16 +146,16 @@ LSTM_backward_return LSTM::backward_step(size_t y, Matrix y_hat, Matrix dh_next,
                                          Matrix c_bar, Matrix c, Matrix o,
                                          Matrix h) {
 
-  Matrix dv = y_hat;
-  dv(y, 0) -= 1;
+  Matrix dy = y_hat;
+  dy(y, 0) -= 1;
 
   Matrix hT = h.transpose();
-  Matrix tmp = dv.dot(hT);
-  this->grads["dWv"] = this->grads["dWv"] + tmp;
-  this->grads["dbv"] = this->grads["dbv"] + dv;
+  Matrix tmp = dy.dot(hT);
+  this->grads["dWy"] = this->grads["dWy"] + tmp;
+  this->grads["dby"] = this->grads["dby"] + dy;
 
-  Matrix wvT = this->params["Wv"].transpose();
-  Matrix dh = wvT.dot(dv) + dh_next;
+  Matrix wyT = this->params["Wy"].transpose();
+  Matrix dh = wyT.dot(dy) + dh_next;
 
   Matrix c_tanh = c.tanh();
   Matrix do_ = dh * c_tanh;
@@ -206,7 +206,7 @@ LSTM_backward_return LSTM::backward_step(size_t y, Matrix y_hat, Matrix dh_next,
   dz = dz + tmp;
 
   auto x = dz.ravel();
-  x = vector<double>(x.begin(), x.begin() + this->n_h);
+  x = vector<double>(x.begin(), x.begin() + this->n_h * dz.cols_n());
 
   Matrix dh_prev(x);
   dh_prev.reshape(this->n_h, 1);
@@ -277,7 +277,7 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
   vector<double> losses;
 
   for (size_t epoch = 0; epoch < epochs; epoch++) {
-    cout << "Starting epoch no." << epoch << " of " << X.size() / this->seq_len
+    cout << "Starting epoch no." << epoch << " with " << X.size() / this->seq_len
          << " sequences" << endl;
     Matrix h_prev(this->n_h, 1, 0);
     Matrix c_prev(this->n_h, 1, 0);
@@ -287,15 +287,11 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
       for (int d = 0; d < delete_n; d++) {
         cout << "\b";
       }
-
       cout << ".";
-
       stringstream ss;
       ss << "(loss = " << this->smooth_loss << ")";
       cout << ss.str();
-
       delete_n = ss.str().length();
-
       cout.flush();
 
       int batch_num = epoch * epochs + i / this->seq_len + 1;
