@@ -1,3 +1,6 @@
+#ifndef MATRIX_CPP
+#define MATRIX_CPP
+
 #include "matrix.h"
 #include <algorithm>
 #include <chrono>
@@ -13,450 +16,494 @@
 
 using namespace std;
 
-Matrix::Matrix() {}
+template<typename T>
+Matrix<T>::Matrix() {}
 
-Matrix::Matrix(vector<double> &m) {
-  this->rows = 1;
-  this->cols = m.size();
-  this->data = m;
+template<typename T>
+Matrix<T>::Matrix(vector<T> &m) {
+	this->rows = 1;
+	this->cols = m.size();
+	this->data = m;
 }
 
-Matrix::Matrix(const Matrix &m) {
-  this->rows = m.rows;
-  this->cols = m.cols;
-  this->data = vector<double>(m.data);
+template<typename T>
+Matrix<T>::Matrix(const Matrix &m) {
+	this->rows = m.rows;
+	this->cols = m.cols;
+	this->data = vector<T>(m.data);
 }
 
-Matrix::Matrix(size_t rows, size_t cols, double initial_value) {
-  if (rows == 0 || cols == 0)
-    throw "Invalid Matrix size";
+template<typename T>
+Matrix<T>::Matrix(unsigned rows, unsigned cols, T initial_value) {
+	if (rows == 0 || cols == 0)
+		throw "Invalid Matrix<T> size";
 
-  this->rows = rows;
-  this->cols = cols;
-  this->data = vector<double>(rows * cols, initial_value);
+	this->rows = rows;
+	this->cols = cols;
+	this->data = vector<T>(rows * cols, initial_value);
 }
 
-Matrix::~Matrix() {}
+template<typename T>
+Matrix<T>::~Matrix() {}
 
-Matrix &Matrix::operator=(const Matrix &m) {
-  this->rows = m.rows;
-  this->cols = m.cols;
-  this->data = vector<double>(m.data);
+template<typename T>
+Matrix<T>& Matrix<T>::operator=(const Matrix<T> &m) {
+	this->rows = m.rows;
+	this->cols = m.cols;
+	this->data = vector<T>(m.data);
 
-  return *this;
+	return *this;
 }
 
-Matrix Matrix::randn(size_t rows, size_t cols) {
-  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-  std::default_random_engine generator(seed);
-  std::normal_distribution<double> distribution(0,1);
+template<typename T>
+Matrix<T> Matrix<T>::randn(unsigned rows, unsigned cols) {
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine generator(seed);
+	std::normal_distribution<T> distribution(0,1);
 
-  vector<double> d;
-  for (size_t i = 0; i < rows*cols; i++) {
-	  d.push_back(distribution(generator));
-  }
+	vector<T> d;
+	for (unsigned i = 0; i < rows*cols; i++) {
+		d.push_back(distribution(generator));
+	}
 
-  Matrix rm = Matrix(d);
-  rm.reshape(rows, cols);
-  return rm;
+	Matrix<T> rm = Matrix(d);
+	rm.reshape(rows, cols);
+	return rm;
 }
 
 
+template<typename T>
+T& Matrix<T>::operator()(const unsigned &row, const unsigned &col) {
+	if (row >= this->rows || col >= this->cols)
+		throw "Matrix<T> subscript out of bounds";
 
-double &Matrix::operator()(const size_t &row, const size_t &col) {
-  if (row >= this->rows || col >= this->cols)
-    throw "Matrix subscript out of bounds";
-
-  return this->data[this->cols * row + col];
+	return this->data[this->cols * row + col];
 }
 
-double Matrix::operator()(const size_t &row, const size_t &col) const {
-  if (row >= this->rows || col >= this->cols)
-    throw "const Matrix subscript out of bounds";
+template<typename T>
+T Matrix<T>::operator()(const unsigned &row, const unsigned &col) const {
+	if (row >= this->rows || col >= this->cols)
+		throw "const Matrix<T> subscript out of bounds";
 
-  return this->data[this->cols * row + col];
+	return this->data[this->cols * row + col];
 }
 
 /*
  * matrix operations
  */
 
-Matrix Matrix::operator+(Matrix &B) {
-  assert(B.cols == this->cols && B.rows == this->rows);
+template<typename T>
+Matrix<T> Matrix<T>::operator+(Matrix<T>& rhs) {
+	assert(rhs.cols == this->cols && rhs.rows == this->rows);
 
-  Matrix res(this->rows, B.cols, 0);
+	Matrix<T> res(this->rows, rhs.cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < B.cols; j++) {
-      res(i, j) = ((*this)(i, j)) + B(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < rhs.cols; j++) {
+			res(i, j) = ((*this)(i, j)) + rhs(i, j);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::operator-(Matrix &B) {
-  assert(B.cols == this->cols && B.rows == this->rows);
+template<typename T>
+Matrix<T>& Matrix<T>::operator+=(Matrix<T> rhs) {
+	for (unsigned i=0; i<this->rows; i++) {
+		for (unsigned j=0; j<this->cols; j++) {
+			(*this)(i,j) += rhs(i,j);
+		}
+	}
 
-  Matrix res(this->rows, B.cols, 0);
-
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < B.cols; j++) {
-      res(i, j) = ((*this)(i, j)) - B(i, j);
-    }
-  }
-
-  return res;
+	return *this;
 }
 
-Matrix Matrix::operator*(Matrix &B) {
-  assert(this->rows == B.rows && this->cols == B.cols);
+template<typename T>
+Matrix<T> Matrix<T>::operator-(Matrix<T>& rhs) {
+	assert(rhs.cols == this->cols && rhs.rows == this->rows);
 
-  Matrix res(*this);
+	Matrix<T> res(this->rows, rhs.cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < B.cols; j++) {
-      res(i, j) *= B(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < rhs.cols; j++) {
+			res(i, j) = ((*this)(i, j)) - rhs(i, j);
+		}
+	}
 
-  return res;
-
-  // assert(this->cols == B.rows);
-  //
-  // Matrix res(this->rows, B.cols, 0);
-  //
-  // for (size_t i = 0; i < this->rows; i++) {
-  //   for (size_t j = 0; j < B.cols; j++) {
-  //     double tmp = 0.0;
-  //     for (size_t k = 0; k < this->cols; k++) {
-  //       tmp += (*this)(i, k) * B(k, j);
-  //     }
-  //
-  //     res(i, j) = tmp;
-  //   }
-  // }
-  //
-  // return res;
+	return res;
 }
 
-Matrix Matrix::operator/(Matrix &B) {
-  assert(this->rows == B.rows && this->cols == B.cols);
+template<typename T>
+Matrix<T> Matrix<T>::operator-=(Matrix<T> rhs) {
+	for (unsigned i=0; i<this->rows; i++) {
+		for (unsigned j=0; j<this->cols; j++) {
+			(*this)(i,j) -= rhs(i,j);
+		}
+	}
 
-  Matrix res(*this);
+	return *this;
+}
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < B.cols; j++) {
-      res(i, j) /= B(i, j);
-    }
-  }
+template<typename T>
+Matrix<T> Matrix<T>::operator*(Matrix<T>& rhs) {
+	assert(this->rows == rhs.rows && this->cols == rhs.cols);
 
-  return res;
+	Matrix<T> res(*this);
+
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < rhs.cols; j++) {
+			res(i, j) *= rhs(i, j);
+		}
+	}
+
+	return res;
+}
+
+template<typename T>
+Matrix<T> Matrix<T>::operator/(Matrix<T>& rhs) {
+	assert(this->rows == rhs.rows && this->cols == rhs.cols);
+
+	Matrix<T> res(*this);
+
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < rhs.cols; j++) {
+			res(i, j) /= rhs(i, j);
+		}
+	}
+
+	return res;
 }
 
 /*
  * scalar operations
  */
 
-Matrix Matrix::operator+(double c) {
-  Matrix res(this->rows, this->cols, c);
+template<typename T>
+Matrix<T> Matrix<T>::operator+(T c) {
+	Matrix<T> res(this->rows, this->cols, c);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      res(i, j) += (*this)(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			res(i, j) += (*this)(i, j);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::operator-(double c) {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::operator-(T c) {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      res(i, j) = (*this)(i, j) - c;
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			res(i, j) = (*this)(i, j) - c;
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::operator*(double c) {
-  Matrix res(this->rows, this->cols, c);
+template<typename T>
+Matrix<T> Matrix<T>::operator*(T c) {
+	Matrix<T> res(this->rows, this->cols, c);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      res(i, j) *= (*this)(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			res(i, j) *= (*this)(i, j);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::operator/(double c) {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::operator/(T c) {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      res(i, j) = (*this)(i, j) / c;
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			res(i, j) = (*this)(i, j) / c;
+		}
+	}
 
-  return res;
+	return res;
 }
 
 /*
  * HELPER FUNCTIONS
  */
 
-Matrix Matrix::exp() {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::exp() {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
-      res(i, j) = std::exp(v);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
+			res(i, j) = std::exp(v);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::sqrt() {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::sqrt() {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
-      res(i, j) = std::sqrt(v);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
+			res(i, j) = std::sqrt(v);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::pow(double p) {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::pow(T p) {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
-      res(i, j) = std::pow(v, p);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
+			res(i, j) = std::pow(v, p);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::tanh() {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::tanh() {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
-      res(i, j) = std::tanh(v);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
+			res(i, j) = std::tanh(v);
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::divides(double numerator) {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::divides(T numerator) {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
 
-      res(i, j) = numerator / v;
-    }
-  }
+			res(i, j) = numerator / v;
+		}
+	}
 
-  return res;
+	return res;
 }
 
-Matrix Matrix::dot(Matrix &B) {
-  if (this->rows == 1 && B.rows == 1) {
-    B = B.transpose();
-  }
+template<typename T>
+Matrix<T> Matrix<T>::dot(Matrix & rhs) {
+	if (this->rows == 1 && rhs.rows == 1) {
+		rhs = rhs.transpose();
+	}
 
-  assert(this->cols == B.rows);
+	assert(this->cols == rhs.rows);
 
-  Matrix res(this->rows, B.cols, 0);
-  for (size_t i = 0; i < this->rows; i++) {
-    vector<double> row = this->row(i);
-    for (size_t j = 0; j < B.cols; j++) {
-      vector<double> col = B.column(j);
-      res(i, j) = inner_product(row.begin(), row.end(), col.begin(), 0);
-    }
-  }
+	Matrix<T> result(this->rows, rhs.cols, 0.0);
 
-  return res;
+	for(unsigned i = 0; i < this->rows; ++i)
+        for(unsigned j = 0; j < rhs.cols; ++j)
+            for(unsigned k = 0; k < this->cols; ++k)
+				result(i,j) += (*this)(i,k) * rhs(k,j);
+
+
+	return result;
+
 }
 
-Matrix Matrix::clip(double min, double max) {
-  Matrix res(this->rows, this->cols, 0);
+template<typename T>
+Matrix<T> Matrix<T>::clip(T min, T max) {
+	Matrix<T> res(this->rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
 
-      if (v > max) {
-        v = max;
-      } else if (v < min) {
-        v = min;
-      }
+			if (v > max) {
+				v = max;
+			} else if (v < min) {
+				v = min;
+			}
 
-      res(i, j) = v;
-    }
-  }
+			res(i, j) = v;
+		}
+	}
 
-  return res;
+	return res;
 }
 
-double Matrix::max() {
-  double max = -DBL_MAX;
+template<typename T>
+T Matrix<T>::max() {
+	T max = -DBL_MAX;
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      double v = (*this)(i, j);
-      if (v > max) {
-        max = v;
-      }
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			T v = (*this)(i, j);
+			if (v > max) {
+				max = v;
+			}
+		}
+	}
 
-  return max;
+	return max;
 }
 
-double Matrix::sum() {
-  double sum = 0;
+template<typename T>
+T Matrix<T>::sum() {
+	T sum = 0;
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      sum += (*this)(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			sum += (*this)(i, j);
+		}
+	}
 
-  return sum;
+	return sum;
 }
 
-vector<double> Matrix::ravel() {
-  return vector<double>(this->data.begin(), this->data.end());
+template<typename T>
+vector<T> Matrix<T>::ravel() {
+	return vector<T>(this->data.begin(), this->data.end());
 }
 
-void Matrix::reshape(size_t _rows, size_t _cols) {
-  if (_rows * _cols != this->rows * this->cols) {
-    throw "Incompatible shape";
-  }
+template<typename T>
+void Matrix<T>::reshape(unsigned _rows, unsigned _cols) {
+	if (_rows * _cols != this->rows * this->cols) {
+		throw "Incompatible shape";
+	}
 
-  this->rows = _rows;
-  this->cols = _cols;
+	this->rows = _rows;
+	this->cols = _cols;
 }
 
-void Matrix::fill(double filler) {
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      (*this)(i, j) = filler;
-    }
-  }
+template<typename T>
+void Matrix<T>::fill(T filler) {
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			(*this)(i, j) = filler;
+		}
+	}
 }
 
-Matrix Matrix::hstack(Matrix &B) {
-  assert(this->rows == B.rows);
+template<typename T>
+Matrix<T> Matrix<T>::hstack(Matrix<T>& rhs) {
+	assert(this->rows == rhs.rows);
 
-  Matrix stacked(this->rows, this->cols + B.cols, 0);
+	Matrix<T> stacked(this->rows, this->cols + rhs.cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      stacked(i, j) = (*this)(i, j);
-    }
-    for (size_t j = 0; j < B.cols; j++) {
-      stacked(i, j + this->cols) = B(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			stacked(i, j) = (*this)(i, j);
+		}
+		for (unsigned j = 0; j < rhs.cols; j++) {
+			stacked(i, j + this->cols) = rhs(i, j);
+		}
+	}
 
-  return stacked;
+	return stacked;
 }
 
-Matrix Matrix::vstack(Matrix &B) {
-  assert(this->cols == B.cols);
+template<typename T>
+Matrix<T> Matrix<T>::vstack(Matrix<T>& rhs) {
+	assert(this->cols == rhs.cols);
 
-  Matrix stacked(this->rows + B.rows, this->cols, 0);
+	Matrix<T> stacked(this->rows + rhs.rows, this->cols, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      stacked(i, j) = (*this)(i, j);
-    }
-  }
-  for (size_t i = 0; i < B.rows; i++) {
-    for (size_t j = 0; j < B.cols; j++) {
-      stacked(this->rows + i, j) = B(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			stacked(i, j) = (*this)(i, j);
+		}
+	}
+	for (unsigned i = 0; i < rhs.rows; i++) {
+		for (unsigned j = 0; j < rhs.cols; j++) {
+			stacked(this->rows + i, j) = rhs(i, j);
+		}
+	}
 
-  return stacked;
+	return stacked;
 }
 
-tuple<size_t, size_t> Matrix::shape() {
-  return tuple<size_t, size_t>(this->rows, this->cols);
+template<typename T>
+tuple<unsigned, unsigned> Matrix<T>::shape() {
+	return tuple<unsigned, unsigned>(this->rows, this->cols);
 }
-size_t Matrix::rows_n() { return this->rows; }
-size_t Matrix::cols_n() { return this->cols; }
+template<typename T>
+unsigned Matrix<T>::rows_n() { return this->rows; }
+template<typename T>
+unsigned Matrix<T>::cols_n() { return this->cols; }
 
-vector<double> Matrix::row(size_t n) {
-  auto start = this->data.begin() + n * this->cols;
-  return vector<double>(start, start + this->cols);
-}
-
-vector<double> Matrix::column(size_t n) {
-  vector<double> col;
-
-  for (size_t i = 0; i < this->rows; i++) {
-    col.push_back((*this)(i, n));
-  }
-
-  return col;
+template<typename T>
+vector<T> Matrix<T>::row(unsigned n) {
+	auto start = this->data.begin() + n * this->cols;
+	return vector<T>(start, start + this->cols);
 }
 
-// void Matrix::randomize(double lower_bound, double upper_bound) {
-//   std::uniform_real_distribution<double> unif(lower_bound, upper_bound);
-//   std::default_random_engine re;
+template<typename T>
+vector<T> Matrix<T>::column(unsigned n) {
+	vector<T> col;
+
+	for (unsigned i = 0; i < this->rows; i++) {
+		col.push_back((*this)(i, n));
+	}
+
+	return col;
+}
+
+// void Matrix<T>::randomize(T lower_bound, T upper_bound) {
+//	 std::uniform_real_distribution<T> unif(lower_bound, upper_bound);
+//	 std::default_random_engine re;
 //
-//   for (size_t i = 0; i < this->rows; i++) {
-//     for (size_t j = 0; j < this->cols; j++) {
-//       (*this)(i, j) = unif(re);
-//     }
-//   }
+//	 for (unsigned i = 0; i < this->rows; i++) {
+//		 for (unsigned j = 0; j < this->cols; j++) {
+//			 (*this)(i, j) = unif(re);
+//		 }
+//	 }
 // }
 
-Matrix Matrix::transpose() {
-  Matrix transposed(this->cols, this->rows, 0);
+template<typename T>
+Matrix<T> Matrix<T>::transpose() {
+	Matrix<T> transposed(this->cols, this->rows, 0);
 
-  for (size_t i = 0; i < this->rows; i++) {
-    for (size_t j = 0; j < this->cols; j++) {
-      transposed(j, i) = (*this)(i, j);
-    }
-  }
+	for (unsigned i = 0; i < this->rows; i++) {
+		for (unsigned j = 0; j < this->cols; j++) {
+			transposed(j, i) = (*this)(i, j);
+		}
+	}
 
-  return transposed;
+	return transposed;
 }
 
-void Matrix::print() const {
-  cout << "[";
-  for (unsigned i = 0; i < this->rows; i++) {
-    if (i != 0) {
-      cout << " ";
-    }
-    cout << "[ ";
-    for (unsigned j = 0; j < this->cols; j++) {
-      cout << (*this)(i, j) << " ";
-    }
-    cout << "]";
-    if (i != this->rows - 1) {
-      cout << "," << endl;
-    }
-  }
-  cout << "]" << endl;
+template<typename T>
+void Matrix<T>::print() const {
+	cout << "[";
+	for (unsigned i = 0; i < this->rows; i++) {
+		if (i != 0) {
+			cout << " ";
+		}
+		cout << "[ ";
+		for (unsigned j = 0; j < this->cols; j++) {
+			cout << (*this)(i, j) << " ";
+		}
+		cout << "]";
+		if (i != this->rows - 1) {
+			cout << "," << endl;
+		}
+	}
+	cout << "]" << endl;
 }
+
+#endif
