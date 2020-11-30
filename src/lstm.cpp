@@ -239,8 +239,8 @@ LSTM_affine_bwd_res LSTM::affine_backward(vector<Matrix> dtheta, Matrix U_cached
 	return LSTM_affine_bwd_res{};
 }
 
-LSTM_fwd_res LSTM::forward(vector<Matrix> batch, Matrix h_init, Matrix c_init) {
-	vector<Matrix> h(batch.size()); // vector of "h"s Matrixes from all time steps
+LSTM_fwd_res LSTM::forward(Matrix batch, Matrix h_init, Matrix c_init) {
+	vector<Matrix> h; // vector of "h"s Matrixes from all time steps
 	vector<LSTM_cell_fwd_res> progress;
 	LSTM_cell_fwd_res init;
 	init.c_next = c_init;
@@ -248,12 +248,8 @@ LSTM_fwd_res LSTM::forward(vector<Matrix> batch, Matrix h_init, Matrix c_init) {
 	progress.push_back(init);
 
 	for (size_t t = 0; t < this->seq_len; t++) {
-		Matrix x(batch.size(), this->vocab_size, 0);
-		for (size_t n = 0; n < batch.size(); n++) {
-			// set x[n,t] to row batch[n].row(t)
-			x.row(t, batch[t].row(n));
-		}
-
+		auto _x = batch.row(t);
+		Matrix x(_x);
 
 		LSTM_cell_fwd_res res = this->cell_forward(x, progress.back().h_next, progress.back().c_next);
 		progress.push_back(res);
@@ -292,17 +288,11 @@ LSTM_training_res LSTM::train(vector<char> _X, size_t epochs, size_t batch_size,
 		Matrix h_prev(batch_size, this->n_h, 0);
 		Matrix c_prev(batch_size, this->n_h, 0);
 
-		vector<Matrix> batch; // batch = N Matrixes of (T x V = vocab sizes) AKA 1 row = 1 one-hot encoding of a char
-		for (size_t i = 0; i < batch_size; i++) {
-			vector<double> _x, _y;
-			for (size_t j = i; j < i + this->seq_len; j++) {
-				auto encoding = this->one_hot_encode(this->char_to_idx[X[j]]);
-				_x.insert(_x.end(), encoding.begin(), encoding.end());
-			}
-			Matrix x = Matrix(_x);
-			x.reshape(this->seq_len, this->vocab_size);
-
-			batch.push_back(x);
+		Matrix batch(this->seq_len, this->vocab_size, 0); // batch = N Matrixes of (T x V = vocab sizes) AKA 1 row = 1 one-hot encoding of a char
+		for (size_t j = 0; j < this->seq_len; j++) {
+			auto encoding = this->one_hot_encode(this->char_to_idx[X[j]]);
+			batch.row(j, encoding);
+			// _x.insert(_x.end(), encoding.begin(), encoding.end());
 		}
 
 

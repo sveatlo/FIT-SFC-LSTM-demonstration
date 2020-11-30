@@ -37,7 +37,7 @@ typedef struct {
 typedef struct {
 	vector<Matrix> dh;
 	Matrix dU;
-}LSTM_affine_bwd_res
+} LSTM_affine_bwd_res;
 
 typedef struct {
 	Matrix dh_prev;
@@ -82,7 +82,7 @@ private:
 	LSTM_cell_bwd_res cell_backward(Matrix dh_next, Matrix dc_next, LSTM_cell_fwd_res cache);
 	LSTM_affine_fwd_res affine_forward(vector<Matrix> h, Matrix U, Matrix b2);
 	LSTM_affine_bwd_res affine_backward(vector<Matrix> dtheta, Matrix U_cached, Matrix b2_cached, vector<Matrix> h_cached);
-	LSTM_fwd_res forward(vector<Matrix> x, Matrix h_init, Matrix c_init); // x = matrix where every row is a hot-one encoding of a single letter
+	LSTM_fwd_res forward(Matrix x, Matrix h_init, Matrix c_init); // x = matrix where every row is a hot-one encoding of a single letter
 	LSTM_bwd_res backward(vector<Matrix> dh, vector<LSTM_cell_fwd_res> fwd_progress);
 
 	// helper methods

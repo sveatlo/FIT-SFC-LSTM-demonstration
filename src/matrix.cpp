@@ -86,10 +86,10 @@ double Matrix::operator()(const size_t &row, const size_t &col) const {
  */
 
 Matrix Matrix::operator+(Matrix &B) {
-	if (B.rows == 1 && this->cols == B.cols) {
+	if (B.rows == 1 && this->rows != 1 && this->cols == B.cols) {
 		return this->batch_column_add(B.data);
 	}
-	if (this->rows == 1 && this->cols == B.cols) {
+	if (B.rows != 1 && this->rows == 1 && this->cols == B.cols) {
 		return B.batch_column_add(this->data);
 	}
 
@@ -372,7 +372,7 @@ Matrix Matrix::sum_cols() {
 Matrix Matrix::batch_column_add(vector<double> b) {
 	assert(b.size() == this->cols);
 
-	Matrix res(*this); // copy current matrix
+	Matrix res = (*this); // copy current matrix
 
 	for (size_t i = 0; i < this->rows; i++) {
 		auto it_begin = this->data.begin() + i * this->cols;

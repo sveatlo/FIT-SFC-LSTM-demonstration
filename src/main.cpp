@@ -112,15 +112,15 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	// try {
-	//      Matrix a = Matrix(3, 3, 1);
-	//      vector<double> s(3,2);
-	//      a.batch_column_add(s);
-	//      a.print();
-	// } catch (char const *e) {
-	//      cerr << e << endl;
-	// }
-	// return 0;
+	try {
+		Matrix a = Matrix(3, 3, 0.25);
+		Matrix b = Matrix(1, 3, 0.25);
+		a = a+b;
+		a.print();
+	} catch (char const *e) {
+		 cerr << e << endl;
+	}
+	return 0;
 
 	if (dataset_filepath == "") {
 		dataset_filepath = "./data/dinos.txt";
