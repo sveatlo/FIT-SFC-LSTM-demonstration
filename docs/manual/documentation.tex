@@ -1,6 +1,6 @@
-\documentclass[11pt,a4paper]{article}
-\usepackage[english]{babel}
+\documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
+\usepackage[slovak]{babel}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
@@ -14,14 +14,15 @@
 \usepackage{listings}
 \usepackage{caption}
 \usepackage[left=2cm,text={17cm,24cm},top=3cm]{geometry}
+\usepackage{amsmath}
 
 
 \newcommand{\source}[1]{\caption*{Source: {#1}} }
 
 \bibliographystyle{czechiso}
 
-\begin{document}
 
+\begin{document}
 \begin{titlepage}
 	\begin{center}
 	    {\LARGE\textsc{Brno University of Technology}}\\
@@ -37,9 +38,160 @@
     {\today \hfill Svätopluk Hanzel}
 \end{titlepage}
 
-\tableofcontents
+\newpage
+\section{Úvod}
+	Cieľom tohto projektu je implementovať aplikáciu demonštrujúcu fungovanie rekurentnej neurónovej siete s tzv. Long Short Term memory architektúrou. 
 
-\newpage
-\section*{Abstract}
-\newpage
+	\subsection{LSTM siete}
+	Neurónové siete s LSTM architektúrou patria medzi tzv. rekurenté neurónové siete. Motiváciou pre ich použitie v kontraste s doprednými neurónovými sieťami je ich schopnosť spájať nové (aktuálne prijaté) informácie s inými dátami, ktoré boli prijaté skôr. Týmto pomáhajú bližšie emulovať napríklad ľudský mozog, nakoľko ani my - ľudia - nezačíname proces rozmýšlania odznova s každým novým slovom.
+	
+		\subsubsection{Architektúra}
+			LSTM sieť výchadza architektúry rekurentných sietí, kde maju jednotlivé bunky spätné napojenie, čím umožňujú predávanie informácie do ďalšieho kroku (viď. obr. \ref{fig:rnn-unrolled})
+			\begin{figure}[h]
+				\centering
+				\includegraphics[width=0.7\linewidth]{images/RNN-unrolled}
+				\caption{Architektúra RNN siete s rozvinutou spätnou väzbou. \href{https://colah.github.io/posts/2015-08-Understanding-LSTMs/}{[zdroj]}}
+				\label{fig:rnn-unrolled}
+			\end{figure}
+			Problém klasických RNN sietí spočíva v ich jednoduchosti - obsahujú len 1 tanh vrstvu, ktorá neumožnuje detailnú kontrolu informácií, ktoré sieť može potrebovať v niekoľko časových krokov ďalej.
+			
+			LSTM siete toto obmedzenie obchádzajú vytvorením ďalších tzv. brán (angl. gates), ktoré detailne kontrolujú tok dát.
+			
+			Základom každej LSTM bunky je \textit{Cell state} ($C_t$) - hodnota, ktorá ide cez všetky časové kroky a jednotlivé bunky do nej môžu "pridávať" alebo z nej môžu "odoberať" informácie práve pomocou týchto brán.
+			
+			\begin{figure}[h]
+				\centering
+				\includegraphics[width=0.7\linewidth]{images/LSTM-chain}
+				\caption{Základná architektúra jednej bunky LSTM siete. \href{https://colah.github.io/posts/2015-08-Understanding-LSTMs/}{[zdroj]}}
+				\label{fig:lstm-chain}
+			\end{figure}
+			
+			
+			\paragraph{Forget gate} Forget gate $f_t$ je sigmoidová vrstva, ktorá ma za úlohu rozhodnúť podľa dát z hidden vektora $h_{t-1}$ z predchádzajúcej bunky a zo vstupu $x_t$ o odstránení niektorých informácií z $C_t$.
+			Výpočet potom vyzerá následovne:
+			\[
+			f_t = \sigma(W_f\cdot[h_{t-1},x_t] + b_i)
+			\]
+			Kde $W_f$ a $b_i$ sú naučené parametre siete.
+			
+			\paragraph{Input gate} Ďalej sa musí rozhodnúť o tom, ktoré informácie sa majú vložiť do $C_t$. Preto sa pomocou sigmoidovej vrstvy vypočíta vektor aktivácií $i_t$
+			\[
+			i_t = \sigma(W_i\cdot[h_{t-1},x_t] + b_i)
+			\]
+			Z ktorého sa ďalej spočíta vektor kandidátnych hodnôt $\tilde{C_t}$.
+			\[
+			\tilde{C_t} = \tanh(W_c\cdot[h_{t-1},x_t] + b_c)
+			\]
+			Samotná aktualizácia $C_t$ sa následnej počíta pomocou oboch týchto hodnôt a hodnoty cell state z predchádzajúceho kroku:
+			\[
+				C_t = f_t * C_{t-1} + i_t * \tilde{C_t}
+			\]
+			
+			\paragraph{Output gate} Posledným krokom vo výpočte LSTM bunky je vytvoriť nový výstupný vektor $h_t$, ktorý bude následne pripojený na ďalšiu bunku v poradí. Na toto slúži brána Output gate, ktorá vypočíta z aktuálneho $C_t$ nový vektor $h_t$, ktorý je jeho filtrovanou verziou. Takto sa može zachovať nejaká informácia a predá sa ďalšej bunke.
+			\[
+			o_t = \sigma(W_o\cdot[h_{t-1},x_t] + b_o)
+			h_t = o_t * tanh(C_t)
+			\]
+				
+		
+		\subsubsection{Backpropagation through time}
+			Pre korektné natrénovanie každej neurónovej siete je dôležité vedieť aká chyba vznikla pri konkrétnom kroku učenia a napraviť jednotlivé parametre tak, aby dali v ďalšom kroku lepšie výsledky.
+			
+			V prípade LSTM sietí je klasický backpropagation algoritmus aktualizovaný a rozšírený pre časovú závislosť krokov. Jeho výpočet spočíva v nájdení gradientov jednotlivých parametrov. Tieto sú následne sčítané skrz všetky časové kroky a na ich základe sa vhodne aktualizujú parametre modelu. \cite{58337}
+			
+			Pre úplnosť uvádzam postup výpočtu gradientov počas BPTT.
+			\begin{align*}
+				dv_t &= \hat{y_t} - y_t \\
+				dh_t &= dh'_t + W_y^T \cdot dv_t \\
+				do_t &= dh_t * \text{tanh}(C_t) \\
+				dC_t &= dC'_t + dh_t * o_t * (1 - \text{tanh}^2(C_t))\\
+				d\bar{C}_t &= dC_t * i_t \\
+				di_t &= dC_t * \bar{C}_t \\
+				df_t &= dC_t * C_{t-1} \\
+				\\
+				df'_t &= f_t * (1 - f_t) * df_t \\
+				di'_t &= i_t * (1 - i_t) * di_t \\
+				d\bar{C}'_{t-1} &= (1 - \bar{C}_t^2) * d\bar{C}_t \\
+				do'_t &= o_t * (1 - o_t) * do_t \\
+				dz_t &= W_f^T \cdot df'_t \\
+				&+ W_i^T \cdot di_t \\
+				&+ W_C^T \cdot d\bar{C}_t \\
+				&+ W_o^T \cdot do_t \\
+				\\
+				[dh'_{t-1}, dx_t] &= dz_t \\
+				dC'_t &= f_t * dC_t
+			\end{align*}
+
+\newpage		
+\section{Implementácia}
+	V rámci tohto projektu som v jazyku C++ implementoval LSTM siet schopnú predikovať jednotlivé znaky. Projekt je rozdelený do viacerých častí - načitanie a príprava dát, práca s maticami a napokon samotná siet.
+	
+	\subsubsection{Načítanie a príprava dát}
+	Pre zjednodušenie práce je táto zodpovednosť presunutá do hlavnej (main) funkcie. Načítanie dát spočíva hlavne vo úprave znakov na malé písmena a vytvorení slovnika, v ktorom su jednotlivé znaky mapované na čisla a takto ďalej odovzdané na čítanie.
+	
+	\subsubsection{Práca s maticami}
+	Vzhľadom na potrebu siete pracovat s vektormi a maticami čísel som sa rozhodol implementovať vlastnú triedu pre matice - \texttt{Matrix}, ktorá implementuje rôzne operácie nad maticami; hlavne maticové násobenie, sčitanie matíc, násobenie matíc so skalármi a rôzne matematické funkcie ako napr. tangens, umocnenie čísel v matici a pod.
+	
+	Samotná trieda je templatovaná, čo umožnuje ukladanie rôznych dátových typov, nie len int čí double.
+	
+	Hlavnú limitáciu tejto triedy vidím v jej obmedzení na 2 dimenzie a neschopnosti vytvárania rôznych pohľadov na jej dáta. Toto obmedzenie by som chcel do budúcnosti odstrániť.
+	
+	\subsubsection{LSTM sieť}
+	Samotná LSTM sieť je implementovaná v triede \texttt{LSTM}. Jej konštruktor berie ako parametre hlavne hyperparametre siete a inicializuje váhy pomocou tzv. Xavierovej inicializácie. \cite{DBLP:journals/corr/Kumar17}
+	
+	Ďalej má táto trieda 1 hlavnú verejnú metódu - \texttt{train}, ktorá spúšťa vo viacerých epochách túto sieť nad celým datasetom rozdeleným na viacero častí podľa dĺžky vstupu siete. V porovnaní s teoretickým model LSTM siete popísaným vyššie maju jednotlivé bunky okrem $h_t$ výstupu aj $\hat{y}_t$, ktorý je spočítaný pomocou \textit{softmax}-u a určuje pravdepodobnosti jednotlivých hodnôt zo slovníka.
+	
+	Po každom takomto doprednom prechode vstupu po sieti sa vypočíta chyba prechodu a spustí sa spätný (backward) prechod sieťou. Pri každom kroku spätného prechodu sa vypočítajú gradienty jednotlivých parametrov siete v tomto kroku, ktoré sa postupne sčítavajú.
+	
+	Na ich základe sa potom v metóde \texttt{update\_params} podľa parametrov optimalizátora a learning rate vypočítajú ich nové hodnoty.
+	
+	Tento proces sa opakuje pre celý dataset = jednu epochu. Po skončení epochy aplikácia vypíše na štandardný výstup loss pre epochu a ukážkový výstup,
+
+\section{Trénovanie}
+	Trénovanie som skúšal na niekoľkých datasetoch - \href{https://www.kaggle.com/kaggle/us-baby-names?select=NationalNames.csv}{menách detí}, \href{https://www.kaggle.com/kumazaki98/dinosaur-list}{dinosaurov} a na kompletnej dramatickej tvorbe Williama Shakespeara či knihách Harryho Pottera. Najlepšie výsledky som dosahoval aplikácia pri jednoduchších datasetoch so znakmi pozostávajúcich len z malých písmen anglickej abecedy, teda názvy dinosaurov.
+	
+	\begin{figure}[h]
+		\centering
+		\includegraphics[width=0.7\linewidth]{images/training-300e-lr001}
+		\caption{Priebeh trénovania siete nad datasetom dinos.txt. 100 epôch a lr = 0.001}
+		\label{fig:training-100e-lr0001}
+	\end{figure}
+	
+	Pri týchto jednoslovných datasetoch sa najviac osvedčila dlžka sekvencie okolo hodnoty 20 znakov pri 20-100 epochách. Po natrénovaní dokáže sieť vygenerovať nové mená dinosaurov na základe vhodného prvého znaku. Ukážka výstupu:
+	
+	\texttt{
+		austrosaurus
+		utarapateks
+		rapator
+		venasugngowx
+		sinornitholog
+		aladromeus
+		toriosaurus
+		zenimaceitisaurus
+		varaikenoplota
+		colopteryx
+		velocirapteros
+		omaisaurus
+		steronthodesceus
+		zhenyurocoese 
+	}
+
+	Ako môžme vidieť, sieť sa naučila rozumne striedať spoluhlásky so samohláskami a používať časté prípony ako \textit{-saurus} či \textit{-us} a slová ako \textit{raptor}.
+
+\section{Používateľský manuál}
+	\subsection{Preklad}
+	Aplikácia používa štandard C++11 a nemá žiadne externá závislosti, takže by mala byť preložiteľná na všetkých strojoch s nainštalovaným prekladačom gcc verzie 4.8 a vyššie.
+		
+	Na samotný preklad má následne aplikácia priloženy \texttt{Makefile} súbor so všetkými potrebnými targetmi pre preklad. Na samostatné preloženie stačí spustiť príkaz \texttt{make}. Výsledná binárka potom bude uložená v adresári \texttt{dist}.
+
+	\subsection{Používanie}	
+	Aplikácia má niekoľko prepínačov, ktoré umožňujú zmeniť hyperparametre siete alebo parametre učenia. Kompletný zoznam aplikácia vypíše po spustení s prepínačom \texttt{-h}. Najdoležitejší je prepínač \texttt{-f}, ktorý udáva cestu k datasetu.
+	
+	Po spustení sa automaticky spustí učenie siete podľa parametrov, po každej epoche vypíše aktuálnu hodnotu loss a vypíše ukážku textu. Po skončení učenia program končí.
+	
+
+\section{Záver}
+Implementovaná verzia je funkčnou LSTM sieťou s učením a BP. Možné vylepšenia vidím hlavne v oblasti práce s multidimenzionálnymi dátami. Mnou vytvorená trieda \texttt{Matrix} je príliš neefektívna, čo má za následok dlhé a menej spoľahlivé učenie.
+
+\bibliography{references}
 \end{document}

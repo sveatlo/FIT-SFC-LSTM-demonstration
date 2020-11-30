@@ -18,7 +18,7 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
 		: char_to_idx(_char_to_idx), idx_to_char(_idx_to_char),
 			vocab_size(_vocab_size), n_h(_n_h), seq_len(_seq_len), beta1(_beta1),
 			beta2(_beta2) {
-	double std = 1.0 / sqrt(this->vocab_size + this->n_h);
+	double std = 1.0/ sqrt(this->vocab_size + this->n_h);
 
 	// forget gate
 	Matrix<double> wf = Matrix<double>::randn(this->n_h, this->n_h + this->vocab_size);
@@ -45,9 +45,9 @@ LSTM::LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
 	this->params.insert(make_pair("bo", bo));
 
 	// output
-	Matrix<double> wv(this->vocab_size, this->n_h, 1);
+	Matrix<double> wy(this->vocab_size, this->n_h, 1);
 	Matrix<double> by(this->vocab_size, 1, 0);
-	this->params.insert(make_pair("Wy", wv * (1 / sqrt(this->vocab_size))));
+	this->params.insert(make_pair("Wy", wy * (1 / sqrt(this->vocab_size))));
 	this->params.insert(make_pair("by", by));
 
 	for (auto const &item : this->params) {
@@ -90,6 +90,7 @@ void LSTM::reset_grads() {
 }
 
 void LSTM::update_params(double lr, size_t batch_n) {
+	// adam optmizer
 	for (auto &item : this->params) {
 		string key = item.first;
 
@@ -103,7 +104,7 @@ void LSTM::update_params(double lr, size_t batch_n) {
 		Matrix<double> m_correlated = this->adam_params["m" + key] / (1 - pow(this->beta1, static_cast<double>(batch_n)));
 		Matrix<double> v_correlated = this->adam_params["v" + key] / (1 - pow(this->beta2, static_cast<double>(batch_n)));
 
-		tmp = (v_correlated.sqrt() + 1e-5);
+		tmp = (v_correlated.sqrt() + 1e-8);
 		this->params[key] -= (m_correlated * lr) / tmp;
 
 		// cout << key << ": ";
@@ -262,8 +263,7 @@ LSTM_forward_backward_return LSTM::forward_backward(vector<size_t> x_batch, vect
 	};
 }
 
-LSTM_training_res LSTM::train(vector<char> _X, size_t epochs,
-															double lr = 0.001) {
+LSTM_training_res LSTM::train(vector<char> _X, size_t epochs, double lr = 0.001) {
 	int num_batches = _X.size() / this->seq_len;
 	vector<char> X(_X.begin(), _X.begin() + num_batches * this->seq_len);
 	vector<double> losses;

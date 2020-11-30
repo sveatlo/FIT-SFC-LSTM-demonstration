@@ -1,7 +1,7 @@
 .PHONY=run all build pack docs banner
 
 # build variables
-CFLAGS=-std=c++11  -lstdc++ -Wall -Wextra -O2 -lm
+CFLAGS=-std=c++11  -lstdc++ -Wall -Wextra -O0 -g -lm
 CC=gcc
 ## which modules should be build
 MODULES=log matrix lstm
@@ -15,7 +15,7 @@ ARCHIVEFILENAME=xhanze10.tar
 # documentation variables
 DOCS_SOURCES=$(DOCS_DIR)manual/documentation.tex $(DOCS_DIR)manual/czechiso.bst \
 	$(DOCS_DIR)manual/references.bib $(DOCS_DIR)manual/Makefile $(DOCS_DIR)manual/images
-PDF_FILENAME=manual.pdf
+PDF_FILENAME=documentation.pdf
 
 all: build $(DIST_DIR)$(BINARY_NAME) banner
 
@@ -63,8 +63,7 @@ $(OBJECT_FILE_PATTERN): $(SRC_DIR)%.cpp $(SRC_DIR)%.h
 
 run: build
 	exec $(DIST_DIR)$(BINARY_NAME)
-pack: $(SRC_DIR)*.cpp $(SRC_DIR)*.h $(DOCS_SOURCES) Makefile Doxyfile
-	make documentation
+pack: $(SRC_DIR)*.cpp $(SRC_DIR)*.h Makefile Doxyfile # documentation
 	mv docs/manual/$(PDF_FILENAME) $(PDF_FILENAME)
 	make clean
 	tar cf $(ARCHIVEFILENAME) $(SRC_DIR) $(DIST_DIR) $(DOCS_DIR) $(PDF_FILENAME) Makefile Doxyfile README.md
