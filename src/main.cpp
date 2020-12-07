@@ -22,12 +22,11 @@ int main(int argc, char **argv) {
 	(void)argc;
 	(void)argv;
 
-	string dataset_filepath;
-	string losses_output_file;
-	double learning_rate = 0.001;
+	string dataset_filepath = "data/dinos.txt";
+	double learning_rate = 0.01;
 	int epochs = 10;
 	int hidden_layers = 100;
-	int sequence_len = 200;
+	int sequence_len = 25;
 
 	int c;
 	while (1) {
@@ -101,23 +100,60 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	// try {
-	//      Matrix a = Matrix::randn(2, 4);
-	//      Matrix b = Matrix(4, 1, 0);
-	//      b(2,0) = 1;
-	//      a.print();
-	//      b.print();
-	//      (a.dot(b)).print();
-	// } catch (char const *e) {
-	//      cerr << e << endl;
-	// }
+	// Matrix<double> a = Matrix<double>::randn(2, 3);
+	// Matrix<double> b(3,3,1);
+	// a.vstack(b).print();
 	// return 0;
 
-	if (dataset_filepath == "") {
-		dataset_filepath = "./data/HP1-short.txt";
-		// cerr << "Invalid dataset filepath";
-		// return 1;
-	}
+	// Matrix<double> a(3,3,1);
+	// Matrix<double> b(3,3,1);
+	// (a+b).print();
+	// return 0;
+
+	// vector<double> ad = {3. , -1. ,  0.3,  0. ,  2. ,  1.};
+	// vector<double> bd = { 1,  4,  5,  6,  8,  2, -3,  3,  9,  7,  1,  0 };
+	// Matrix<double> a(ad);
+	// a.reshape(2, 3);
+	// Matrix<double> b(bd);
+	// b.reshape(3, 4);
+	// a.print();
+	// b.print();
+	// a.dot(b).print();
+	// return 0;
+
+	// vector<double> d = {0.003,-3,0,-0.000001,2,1};
+	// Matrix<double> a;
+	// Matrix<double> x = Matrix<double>(d);
+	// x.reshape(2,3);
+    //
+	// cout << "\nsigmoid: " << endl;
+	// a = ((x * -1).exp() + 1).divides(1);
+	// a.print();
+    //
+	// cout << "\ndsigmoid: " << endl;
+	// auto tmp = ((x * -1) + 1);
+	// a = x * tmp;
+	// a.print();
+    //
+	// cout << "\ntanh: " << endl;
+	// x.tanh().print();
+    //
+	// cout << "\ndtanh: " << endl;
+	// a = (x.pow(2) * -1) + 1;
+	// a.print();
+    //
+	// cout << "\nsoftmax" << endl;
+	// Matrix<double> e_x = x.exp();
+	// a = e_x / (e_x.sum() + 1e-8);
+	// a.print();
+    //
+	// cout << "\nexp: " << endl;
+	// x.exp().print();
+	// return 0;
+
+
+
+	// START
 
 	vector<char> data = read_dataset(dataset_filepath);
 	for (char &c : data) {
@@ -125,13 +161,13 @@ int main(int argc, char **argv) {
 	}
 
 	set<char> chars(data.begin(), data.end());
-	size_t vocab_size = chars.size();
+	unsigned vocab_size = chars.size();
 
 	cout << "data has " << data.size() << " characters, " << vocab_size
 			 << " unique" << endl;
 
-	map<char, size_t> char_to_idx;
-	map<size_t, char> idx_to_char;
+	map<char, unsigned> char_to_idx;
+	map<unsigned, char> idx_to_char;
 	int chars_i = 0;
 	for (char c : chars) {
 		char_to_idx[c] = chars_i;
@@ -147,8 +183,23 @@ int main(int argc, char **argv) {
 	cout << "\tlearning rate: " << learning_rate << endl;
 	cout << "\tno. of epochs: " << epochs << endl;
 	cout << "\tnumber of hidden layers: " << hidden_layers << endl;
-	cout << "\tsequence_length: " << sequence_len << endl;
-	try {
+	cout << "\tsequence length: " << sequence_len << endl;
+	cout << "\tvocabulary size: " << vocab_size << endl;
+	cout << "\t  vocabulary: ";
+	for (unsigned i = 0; i < chars.size(); i++) {
+		cout << i << ":";
+		switch (idx_to_char[i]) {
+			case '\n':
+				cout << "\\n";
+				break;
+			default:
+				cout << idx_to_char[i];
+		}
+		cout << " ";
+	}
+	cout << endl;
+
+	// try {
 		LSTM nn =
 				LSTM(char_to_idx, idx_to_char, vocab_size, hidden_layers, sequence_len);
 		LSTM_training_res res = nn.train(data, epochs, learning_rate);
@@ -160,12 +211,12 @@ int main(int argc, char **argv) {
 		}
 		cout << endl << endl;
 
-		Matrix<double> h_prev(25, 1, 0);
-		Matrix<double> c_prev(25, 1, 0);
-		cout << nn.sample(h_prev, c_prev, 100) << endl;
-	} catch (char const *e) {
-		cerr << e << endl;
-	}
+		Matrix<double> h_prev(hidden_layers, 1, 0);
+		Matrix<double> c_prev(hidden_layers, 1, 0);
+		cout << nn.sample(100, 'a') << endl;
+	// } catch (char const *e) {
+	//     cerr << e << endl;
+	// }
 
 	return 0;
 }

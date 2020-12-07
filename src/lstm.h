@@ -9,8 +9,24 @@
 
 using namespace std;
 
+
+class Param {
+public:
+	Param() {}
+	Param(string name, Matrix<double> value) : v(value) {
+		this->name = name;
+		this->d = Matrix<double>(this->v.rows_n(), this->v.cols_n(), 0);
+		this->m = Matrix<double>(this->v.rows_n(), this->v.cols_n(), 0);
+	}
+
+	string name;
+	Matrix<double> v;
+	Matrix<double> d;
+	Matrix<double> m;
+};
+
 typedef struct {
-	Matrix<double> y_hat;
+	Matrix<double> y;
 	Matrix<double> v;
 	Matrix<double> h;
 	Matrix<double> o;
@@ -34,48 +50,40 @@ typedef struct {
 
 typedef struct {
 	vector<double> lossses;
-	map<string, Matrix<double>> params;
+	map<string, Param> params;
 } LSTM_training_res;
 
 class LSTM {
 public:
-	LSTM(map<char, size_t> _char_to_idx, map<size_t, char> _idx_to_char,
-			 size_t _vocab_size, size_t _n_h = 100, size_t _seq_len = 25,
-			 double _beta1 = 0.9, double _beta2 = 0.999);
+	LSTM(map<char, unsigned> _char_to_idx, map<unsigned, char> _idx_to_char,  unsigned _vocab_size, unsigned _n_h = 100, unsigned _seq_len = 25, 	 double _beta1 = 0.9, double _beta2 = 0.999);
 
-	LSTM_training_res train(vector<char> data,
-																									size_t epochs, double lr);
-	string sample(Matrix<double> h_prev, Matrix<double> c_prev, size_t size);
+	LSTM_training_res train(vector<char> data, unsigned epochs, double lr);
+	string sample(unsigned size, char seed = '\0');
 
 private:
-	map<char, size_t> char_to_idx;
-	map<size_t, char> idx_to_char;
-	size_t vocab_size;
-	size_t n_h;
-	size_t seq_len;
+	map<char, unsigned> char_to_idx;
+	map<unsigned, char> idx_to_char;
+	unsigned vocab_size;
+	unsigned n_h;
+	unsigned seq_len;
 	double beta1;
 	double beta2;
 
-	map<string, Matrix<double>> params;
-	map<string, Matrix<double>> grads;
-	map<string, Matrix<double>> adam_params;
+	map<string, Param> params;
 
 	double smooth_loss;
 	default_random_engine sample_random_generator;
 
 	Matrix<double> sigmoid(Matrix<double>);
 	Matrix<double> softmax(Matrix<double>);
+	Matrix<double> dsigmoid(Matrix<double>);
+	Matrix<double> dtanh(Matrix<double>);
 	void clip_grads();
 	void reset_grads();
-	void update_params(double lr, size_t batch_n);
+	void update_params(double lr);
 	LSTM_step_data forward_step(Matrix<double> x, Matrix<double> h_prev, Matrix<double> c_prev);
-	LSTM_backward_return backward_step(size_t y, Matrix<double> y_hat, Matrix<double> dh_next,
-																		 Matrix<double> dc_next, Matrix<double> c_prev, Matrix<double> z,
-																		 Matrix<double> f, Matrix<double> i, Matrix<double> c_bar, Matrix<double> c,
-																		 Matrix<double> o, Matrix<double> h);
-	LSTM_forward_backward_return forward_backward(vector<size_t> x_batch,
-																								vector<size_t> y_batch,
-																								Matrix<double> h_prev, Matrix<double> c_prev);
+	LSTM_backward_return backward_step(unsigned idx, Matrix<double> dh_next, Matrix<double> dc_next, Matrix<double> c_prev, Matrix<double> z, Matrix<double> f, Matrix<double> i, Matrix<double> c_bar, Matrix<double> c, Matrix<double> o, Matrix<double> h, Matrix<double> v, Matrix<double> y);
+	LSTM_forward_backward_return forward_backward(vector<unsigned> x_batch, vector<unsigned> y_batch, Matrix<double> h_prev, Matrix<double> c_prev);
 };
 
 #endif

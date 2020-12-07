@@ -255,6 +255,7 @@ Matrix<T> Matrix<T>::sqrt() {
 	for (unsigned i = 0; i < this->rows; i++) {
 		for (unsigned j = 0; j < this->cols; j++) {
 			T v = (*this)(i, j);
+			assert(v == v);
 			res(i, j) = std::sqrt(v);
 		}
 	}
@@ -320,15 +321,12 @@ Matrix<T> Matrix<T>::dot(Matrix & rhs) {
             for(unsigned k = 0; k < this->cols; ++k)
 				result(i,j) += (*this)(i,k) * rhs(k,j);
 
-
 	return result;
 
 }
 
 template<typename T>
-Matrix<T> Matrix<T>::clip(T min, T max) {
-	Matrix<T> res(this->rows, this->cols, 0);
-
+void Matrix<T>::clip(T min, T max) {
 	for (unsigned i = 0; i < this->rows; i++) {
 		for (unsigned j = 0; j < this->cols; j++) {
 			T v = (*this)(i, j);
@@ -339,16 +337,14 @@ Matrix<T> Matrix<T>::clip(T min, T max) {
 				v = min;
 			}
 
-			res(i, j) = v;
+			(*this)(i, j) = v;
 		}
 	}
-
-	return res;
 }
 
 template<typename T>
 T Matrix<T>::max() {
-	T max = -DBL_MAX;
+	T max = -LDBL_MAX;
 
 	for (unsigned i = 0; i < this->rows; i++) {
 		for (unsigned j = 0; j < this->cols; j++) {
@@ -463,17 +459,6 @@ vector<T> Matrix<T>::column(unsigned n) {
 	return col;
 }
 
-// void Matrix<T>::randomize(T lower_bound, T upper_bound) {
-//	 std::uniform_real_distribution<T> unif(lower_bound, upper_bound);
-//	 std::default_random_engine re;
-//
-//	 for (unsigned i = 0; i < this->rows; i++) {
-//		 for (unsigned j = 0; j < this->cols; j++) {
-//			 (*this)(i, j) = unif(re);
-//		 }
-//	 }
-// }
-
 template<typename T>
 Matrix<T> Matrix<T>::transpose() {
 	Matrix<T> transposed(this->cols, this->rows, 0);
@@ -496,6 +481,7 @@ void Matrix<T>::print() const {
 		}
 		cout << "[ ";
 		for (unsigned j = 0; j < this->cols; j++) {
+			cout.precision(8);
 			cout << (*this)(i, j) << " ";
 		}
 		cout << "]";

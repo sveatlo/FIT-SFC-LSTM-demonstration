@@ -45,7 +45,7 @@ public:
 	Matrix tanh();
 	Matrix dot(Matrix &);
 	Matrix divides(T numerator);
-	Matrix clip(T, T);
+	void clip(T, T);
 	T max();
 	T sum();
 

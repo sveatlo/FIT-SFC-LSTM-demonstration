@@ -1,7 +1,7 @@
 .PHONY=run all build pack docs banner
 
 # build variables
-CFLAGS=-std=c++11  -lstdc++ -Wall -Wextra -O0 -g -lm
+CFLAGS=-std=c++11  -lstdc++ -Wall -Wextra -O2 -lm
 CC=gcc
 ## which modules should be build
 MODULES=log matrix lstm
@@ -66,7 +66,7 @@ run: build
 pack: $(SRC_DIR)*.cpp $(SRC_DIR)*.h Makefile Doxyfile # documentation
 	mv docs/manual/$(PDF_FILENAME) $(PDF_FILENAME)
 	make clean
-	tar cf $(ARCHIVEFILENAME) $(SRC_DIR) $(DIST_DIR) $(DOCS_DIR) $(PDF_FILENAME) Makefile Doxyfile README.md
+	tar cf $(ARCHIVEFILENAME) $(SRC_DIR) $(DIST_DIR) $(DOCS_DIR) data/HP1-short.txt $(PDF_FILENAME) Makefile Doxyfile README.md
 clean:
 	make -C $(DOCS_DIR)manual clean
 	rm -rf ./*.o $(DIST_DIR)$(BINARY_NAME) $(DIST_DIR)*.o $(DIST_DIR)*.out $(DIST_DIR)*.a $(DIST_DIR)*.so $(SRC_DIR)*.gch \
