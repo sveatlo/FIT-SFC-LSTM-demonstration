@@ -190,7 +190,7 @@ LSTM_backward_return LSTM::backward_step(
 	dh += dh_next;
 	Matrix<double> c_tanh = c.tanh();
 	Matrix<double> do_ = dh * c_tanh;
-	do_ = this->dsigmoid(o) * do_;  // gets fucking big (6.5838617773635592e+187)
+	do_ = this->dsigmoid(o) * do_;
 	this->params["Wo"].d += do_.dot(zT);
 	this->params["bo"].d += do_;
 
@@ -198,7 +198,7 @@ LSTM_backward_return LSTM::backward_step(
 	tmp = this->dtanh(c_tanh);
 	dc += dh * o * tmp;
 	Matrix<double> dc_bar = dc * i;
-	dc_bar = this->dtanh(c_bar) * dc_bar; // gets really fucking small (-2.6288897253566143e+42)
+	dc_bar = this->dtanh(c_bar) * dc_bar;
 	this->params["Wc"].d += dc_bar.dot(zT);
 	this->params["bc"].d += dc_bar;
 

@@ -1,7 +1,6 @@
 #include "log.h"
 #include "lstm.h"
 #include "matrix.h"
-#include "stacktrace.h"
 #include <algorithm>
 #include <fstream>
 #include <getopt.h>
@@ -13,8 +12,20 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-void print_help(string);
-vector<char> read_dataset(string &);
+typedef struct parameters_s {
+	bool show_help = false;
+	string dataset_filepath = "data/dinos.text";
+	double learning_rate = 0.01;
+	int epochs = 10;
+	int hidden_layers = 100;
+	int sequence_len = 25;
+} parameters;
+
+parameters parse_parameters(int argc, char **argv);
+void print_help(string binary_path);
+vector<char> read_dataset(string &filepath);
+
+void test();
 
 using namespace std;
 
@@ -22,11 +33,83 @@ int main(int argc, char **argv) {
 	(void)argc;
 	(void)argv;
 
-	string dataset_filepath = "data/dinos.txt";
-	double learning_rate = 0.01;
-	int epochs = 10;
-	int hidden_layers = 100;
-	int sequence_len = 25;
+	parameters p = parse_parameters(argc, argv);
+	if (p.show_help) {
+		print_help(argv[0]);
+		return 0;
+	}
+
+
+	// START
+
+	vector<char> data = read_dataset(p.dataset_filepath);
+	for (char &c : data) {
+		c = tolower(c);
+	}
+
+	set<char> chars(data.begin(), data.end());
+	unsigned vocab_size = chars.size();
+
+	cout << "data has " << data.size() << " characters, " << vocab_size
+			 << " unique" << endl;
+
+	map<char, unsigned> char_to_idx;
+	map<unsigned, char> idx_to_char;
+	int chars_i = 0;
+	for (char c : chars) {
+		char_to_idx[c] = chars_i;
+		idx_to_char[chars_i] = c;
+
+		// cout << c << ":" << chars_i << endl;
+
+		chars_i++;
+	}
+
+	cout << "======================================================" << endl;
+	cout << "Training with following parameters:" << endl;
+	cout << "\tlearning rate: " << p.learning_rate << endl;
+	cout << "\tno. of epochs: " << p.epochs << endl;
+	cout << "\tnumber of hidden layers: " << p.hidden_layers << endl;
+	cout << "\tsequence length: " << p.sequence_len << endl;
+	cout << "\tvocabulary size: " << vocab_size << endl;
+	cout << "\t  vocabulary: ";
+	for (unsigned i = 0; i < chars.size(); i++) {
+		cout << i << ":";
+		switch (idx_to_char[i]) {
+			case '\n':
+				cout << "\\n";
+				break;
+			default:
+				cout << idx_to_char[i];
+		}
+		cout << " ";
+	}
+	cout << endl;
+
+	try {
+		LSTM nn =
+				LSTM(char_to_idx, idx_to_char, vocab_size, p.hidden_layers, p.sequence_len);
+		LSTM_training_res res = nn.train(data, p.epochs, p.learning_rate);
+		cout << "================== Training finished =================" << endl;
+
+		cout << "Losses progress: " << endl;
+		for (auto &x : res.lossses) {
+			cout << x << " ";
+		}
+		cout << endl << endl;
+
+		Matrix<double> h_prev(p.hidden_layers, 1, 0);
+		Matrix<double> c_prev(p.hidden_layers, 1, 0);
+		cout << nn.sample(100) << endl;
+	} catch (char const *e) {
+		cerr << e << endl;
+	}
+
+	return 0;
+}
+
+parameters parse_parameters(int argc, char** argv) {
+	parameters p;
 
 	int c;
 	while (1) {
@@ -59,16 +142,16 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'f':
-			dataset_filepath = string(optarg);
+			p.dataset_filepath = string(optarg);
 			break;
 
 		case 'l':
-			learning_rate = stod(string(optarg));
+			p.learning_rate = stod(string(optarg));
 			break;
 
 		case 'e':
 			try {
-				epochs = stoi(optarg);
+				p.epochs = stoi(optarg);
 			} catch (...) {
 				cout << "epochs must be integer";
 				exit(1);
@@ -77,7 +160,7 @@ int main(int argc, char **argv) {
 
 		case 'i':
 			try {
-				hidden_layers = stoi(optarg);
+				p.hidden_layers = stoi(optarg);
 			} catch (...) {
 				cout << "number of hidden layers must be integer";
 				exit(1);
@@ -86,7 +169,7 @@ int main(int argc, char **argv) {
 
 		case 's':
 			try {
-				sequence_len = stoi(optarg);
+				p.sequence_len = stoi(optarg);
 			} catch (...) {
 				cout << "sequence length must be integer";
 				exit(1);
@@ -94,131 +177,13 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'h':
-			print_help(argv[0]);
-			return 0;
+			p.show_help = true;
+			return p;
 			break;
 		}
 	}
 
-	// Matrix<double> a = Matrix<double>::randn(2, 3);
-	// Matrix<double> b(3,3,1);
-	// a.vstack(b).print();
-	// return 0;
-
-	// Matrix<double> a(3,3,1);
-	// Matrix<double> b(3,3,1);
-	// (a+b).print();
-	// return 0;
-
-	// vector<double> ad = {3. , -1. ,  0.3,  0. ,  2. ,  1.};
-	// vector<double> bd = { 1,  4,  5,  6,  8,  2, -3,  3,  9,  7,  1,  0 };
-	// Matrix<double> a(ad);
-	// a.reshape(2, 3);
-	// Matrix<double> b(bd);
-	// b.reshape(3, 4);
-	// a.print();
-	// b.print();
-	// a.dot(b).print();
-	// return 0;
-
-	// vector<double> d = {0.003,-3,0,-0.000001,2,1};
-	// Matrix<double> a;
-	// Matrix<double> x = Matrix<double>(d);
-	// x.reshape(2,3);
-    //
-	// cout << "\nsigmoid: " << endl;
-	// a = ((x * -1).exp() + 1).divides(1);
-	// a.print();
-    //
-	// cout << "\ndsigmoid: " << endl;
-	// auto tmp = ((x * -1) + 1);
-	// a = x * tmp;
-	// a.print();
-    //
-	// cout << "\ntanh: " << endl;
-	// x.tanh().print();
-    //
-	// cout << "\ndtanh: " << endl;
-	// a = (x.pow(2) * -1) + 1;
-	// a.print();
-    //
-	// cout << "\nsoftmax" << endl;
-	// Matrix<double> e_x = x.exp();
-	// a = e_x / (e_x.sum() + 1e-8);
-	// a.print();
-    //
-	// cout << "\nexp: " << endl;
-	// x.exp().print();
-	// return 0;
-
-
-
-	// START
-
-	vector<char> data = read_dataset(dataset_filepath);
-	for (char &c : data) {
-		c = tolower(c);
-	}
-
-	set<char> chars(data.begin(), data.end());
-	unsigned vocab_size = chars.size();
-
-	cout << "data has " << data.size() << " characters, " << vocab_size
-			 << " unique" << endl;
-
-	map<char, unsigned> char_to_idx;
-	map<unsigned, char> idx_to_char;
-	int chars_i = 0;
-	for (char c : chars) {
-		char_to_idx[c] = chars_i;
-		idx_to_char[chars_i] = c;
-
-		// cout << c << ":" << chars_i << endl;
-
-		chars_i++;
-	}
-
-	cout << "======================================================" << endl;
-	cout << "Training with following parameters:" << endl;
-	cout << "\tlearning rate: " << learning_rate << endl;
-	cout << "\tno. of epochs: " << epochs << endl;
-	cout << "\tnumber of hidden layers: " << hidden_layers << endl;
-	cout << "\tsequence length: " << sequence_len << endl;
-	cout << "\tvocabulary size: " << vocab_size << endl;
-	cout << "\t  vocabulary: ";
-	for (unsigned i = 0; i < chars.size(); i++) {
-		cout << i << ":";
-		switch (idx_to_char[i]) {
-			case '\n':
-				cout << "\\n";
-				break;
-			default:
-				cout << idx_to_char[i];
-		}
-		cout << " ";
-	}
-	cout << endl;
-
-	// try {
-		LSTM nn =
-				LSTM(char_to_idx, idx_to_char, vocab_size, hidden_layers, sequence_len);
-		LSTM_training_res res = nn.train(data, epochs, learning_rate);
-		cout << "================== Training finished =================" << endl;
-
-		cout << "Losses progress: " << endl;
-		for (auto &x : res.lossses) {
-			cout << x << " ";
-		}
-		cout << endl << endl;
-
-		Matrix<double> h_prev(hidden_layers, 1, 0);
-		Matrix<double> c_prev(hidden_layers, 1, 0);
-		cout << nn.sample(100, 'a') << endl;
-	// } catch (char const *e) {
-	//     cerr << e << endl;
-	// }
-
-	return 0;
+	return p;
 }
 
 void print_help(string binary_path) {
@@ -241,4 +206,58 @@ vector<char> read_dataset(string &filename) {
 	ifs.read(bytes.data(), fileSize);
 
 	return bytes;
+}
+
+
+void test() {
+	// Matrix<double> a = Matrix<double>::randn(2, 3);
+	// Matrix<double> b(3,3,1);
+	// a.vstack(b).print();
+	// return;
+
+	// Matrix<double> a(3,3,1);
+	// Matrix<double> b(3,3,1);
+	// (a+b).print();
+	// return;
+
+	// vector<double> ad = {3. , -1. ,  0.3,  0. ,  2. ,  1.};
+	// vector<double> bd = { 1,  4,  5,  6,  8,  2, -3,  3,  9,  7,  1,  0 };
+	// Matrix<double> a(ad);
+	// a.reshape(2, 3);
+	// Matrix<double> b(bd);
+	// b.reshape(3, 4);
+	// a.print();
+	// b.print();
+	// a.dot(b).print();
+	// return;
+
+	// vector<double> d = {0.003,-3,0,-0.000001,2,1};
+	// Matrix<double> a;
+	// Matrix<double> x = Matrix<double>(d);
+	// x.reshape(2,3);
+
+	// cout << "\nsigmoid: " << endl;
+	// a = ((x * -1).exp() + 1).divides(1);
+	// a.print();
+
+	// cout << "\ndsigmoid: " << endl;
+	// auto tmp = ((x * -1) + 1);
+	// a = x * tmp;
+	// a.print();
+
+	// cout << "\ntanh: " << endl;
+	// x.tanh().print();
+
+	// cout << "\ndtanh: " << endl;
+	// a = (x.pow(2) * -1) + 1;
+	// a.print();
+
+	// cout << "\nsoftmax" << endl;
+	// Matrix<double> e_x = x.exp();
+	// a = e_x / (e_x.sum() + 1e-8);
+	// a.print();
+
+	// cout << "\nexp: " << endl;
+	// x.exp().print();
+	// return;
 }
